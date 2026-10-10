@@ -75,7 +75,7 @@ input, select, textarea { font: inherit; }
 .menu-head { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 .menu-head.group { color: var(--blue); font-weight: 600; }
 .menu-head.plain { font-weight: 600; }
-.chev { transition: transform .15s; font-size: 16px; line-height: 1; }
+.chev { transition: transform .15s; flex-shrink: 0; }
 .chev.up { transform: rotate(180deg); }
 .submenu { margin: 0 10px 10px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .sub { padding: 9px 12px; border-bottom: 1px solid var(--border); font-weight: 600; color: #333; cursor: pointer; position: relative; }
@@ -171,6 +171,7 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 .block.is-hidden { opacity: 1; }
 .block.is-hidden .block-tag { opacity: .7; text-decoration: line-through; }
 .hidden-note { padding: 12px; border: 1px dashed #ccc; border-radius: 6px; color: var(--muted); font-size: 13px; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 8px, #f2f2f2 8px, #f2f2f2 16px); }
+.menu-head:focus-visible, .sub:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 .drop { box-shadow: inset 3px 0 0 var(--cz); background-color: var(--cz-soft) !important; }
 .rename-input { font: inherit; border: 1px solid var(--cz); border-radius: 4px; padding: 2px 6px; min-width: 140px; color: var(--text); background: #fff; }
 .customizing .field { padding: 4px; border-radius: 6px; }
@@ -216,14 +217,25 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 
 /* tools appear on hover (desktop); always visible on touch devices */
 @media (hover: hover) {
-  .customizing .tools { opacity: 0; transition: opacity .12s; }
+  .customizing .tools { opacity: 0; pointer-events: none; transition: opacity .12s; }
   .customizing .cz-item:hover > .tools,
-  .customizing .menu-group:hover > .tools,
+  .customizing .field:hover > .tools,
+  .customizing .menu-head:hover + .tools,
+  .customizing .menu-group > .tools:hover,
   .customizing .sub:hover > .tools,
   .customizing .page-title:hover > .tools,
   .customizing .tools:focus-within,
   .customizing .is-hidden > .tools,
-  .customizing .block-tag .tools { opacity: 1; }
+  .customizing .block-tag .tools { opacity: 1; pointer-events: auto; }
+
+  /* menu items and form fields: tools float over the row instead of reserving an empty line */
+  .menu-group > .tools, .sub > .tools, .field > .tools {
+    position: absolute; z-index: 3; margin: 0; padding: 3px; border-radius: 9px;
+    background: rgba(255, 255, 255, .96); box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+  }
+  .menu-group > .tools { top: 6px; right: 34px; }
+  .sub > .tools { top: 50%; right: 6px; transform: translateY(-50%); }
+  .field > .tools { top: -9px; right: 4px; }
 }
 .menu-group > .tools { display: flex; margin: -4px 16px 10px; }
 .sub > .tools { display: flex; margin: 6px 0 0; }

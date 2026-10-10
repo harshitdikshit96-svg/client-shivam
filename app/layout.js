@@ -5,7 +5,7 @@ export const metadata = { title: "Contractor Portal — Field Selection", robots
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

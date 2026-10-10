@@ -48,8 +48,12 @@ function Shell() {
     if (!SCREEN_BY_ID[id]) return;
     window.location.hash = `s=${id}`;
     setScreen(id);
-    window.scrollTo({ top: 0 });
   }, []);
+
+  // every screen change starts at the top, however it was triggered
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [screen]);
 
   return (
     <div className={`app ${c.customizing ? "customizing" : ""}`}>
