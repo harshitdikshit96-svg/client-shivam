@@ -20,7 +20,7 @@ export function CustProvider({ k, initial, children }) {
   const latest = useRef(ov);
   latest.current = ov;
 
-  const locked = status === "submitted";
+  const locked = status === "submitted" || status === "final";
   const customizing = mode === "customize" && !locked;
 
   const persist = useCallback(async () => {

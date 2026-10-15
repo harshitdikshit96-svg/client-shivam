@@ -1,0 +1,1940 @@
+{
+  "status": "submitted",
+  "submittedAt": "2026-10-12T08:16:12.456Z",
+  "version": 1,
+  "spec": {
+    "menu": [
+      {
+        "label": "Work Order",
+        "items": [
+          {
+            "label": "Ongoing Work Order",
+            "screen": "wo_ongoing"
+          },
+          {
+            "label": "Completed Work Order",
+            "screen": "wo_completed"
+          },
+          {
+            "label": "Pending Work Order Approval",
+            "screen": "wo_pending"
+          }
+        ]
+      },
+      {
+        "label": "Home"
+      },
+      {
+        "label": "Workmen",
+        "items": [
+          {
+            "label": "Engage Workmen Against Work Order",
+            "screen": "wm_engage"
+          },
+          {
+            "label": "View Active Workmen",
+            "screen": "wm_active"
+          },
+          {
+            "label": "View Inactive Workmen",
+            "screen": "wm_inactive"
+          },
+          {
+            "label": "Workmen Photo",
+            "screen": "wm_photo"
+          },
+          {
+            "label": "Workmen Moved Out",
+            "screen": "wm_moved"
+          }
+        ]
+      },
+      {
+        "label": "Wages",
+        "items": [
+          {
+            "label": "New Wage Entry",
+            "screen": "wage_new"
+          }
+        ]
+      },
+      {
+        "label": "Complaince",
+        "items": [
+          {
+            "label": "Dispatch Register",
+            "screen": "profile"
+          },
+          {
+            "label": "Reset Password",
+            "screen": "reset_pw"
+          }
+        ]
+      },
+      {
+        "label": "Logout"
+      }
+    ],
+    "screens": [
+      {
+        "id": "home",
+        "title": "Contractor Dashboard for CUIN : ——",
+        "blocks": [
+          {
+            "title": "Summary cards",
+            "type": "stats",
+            "items": [
+              {
+                "label": "Pending Work Order Approvals"
+              },
+              {
+                "label": "Approved Work Orders"
+              },
+              {
+                "label": "Rejected Work Orders"
+              }
+            ]
+          },
+          {
+            "title": "Alerts",
+            "type": "card",
+            "items": [
+              {
+                "label": "Attendance Entry Update: Overtime (OT) entry is now enabled. Enter OT Hours and OT Minutes in 15-minute intervals (0, 15, 30, 45)."
+              },
+              {
+                "label": "Wage Entry Enhancements: PLI option is now available. System will validate Skill Category and Social Category before saving. Use the WUIN link for quick update of missing details."
+              },
+              {
+                "label": "Manage Engagements: available under View Active, View Inactive Workmen and Moved Out Workmen. Use this to engage workmen for dates before the last attendance date."
+              }
+            ]
+          },
+          {
+            "title": "Recent Work Order Activities",
+            "type": "card",
+            "items": [
+              {
+                "label": "No recent activity"
+              }
+            ]
+          },
+          {
+            "title": "Compliance Summary",
+            "type": "card",
+            "items": [
+              {
+                "label": "Step 1: Register Workmen — Workmen → Engage Workmen Against Work Order lists all workmen. Use New Workman if a workman is not available."
+              },
+              {
+                "label": "Step 2: Engage Workmen — use Engage Workmen Against Work Order. Engagement allowed from dates after the last attendance date."
+              },
+              {
+                "label": "Step 3: Mark Attendance — Attendance → New Attendance. Save attendance for workmen engaged in the period, then submit after verification."
+              },
+              {
+                "label": "Step 4: Wage Entry — available under New Wage Entry after attendance submission. Verify and submit wage details."
+              },
+              {
+                "label": "Important: ensure workmen engagement is correct, attendance is submitted before wage entry, and all mandatory workman fields are filled."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wo_ongoing",
+        "title": "Ongoing Work Orders / Contracts",
+        "blocks": [
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Work Location (State)"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Engineer In-charge / Auth. Executive"
+              },
+              {
+                "label": "Update Work Order"
+              },
+              {
+                "label": "Workmen Engagement"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Create New Work Order"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wo_completed",
+        "title": "Completed Work Orders / Contracts",
+        "blocks": [
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Work Location (State)"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Engineer In-charge / Auth. Executive"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wo_pending",
+        "title": "Approval Pending Work Orders / Contracts",
+        "blocks": [
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Work Location (State)"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Engineer In-charge / Auth. Executive"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wo_edit",
+        "title": "Edit Work Order / Contract",
+        "blocks": [
+          {
+            "title": "Notes",
+            "type": "notes",
+            "items": [
+              {
+                "label": "Note: Fields marked * are mandatory."
+              }
+            ]
+          },
+          {
+            "title": "Work order header",
+            "type": "kv",
+            "items": [
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Company / Area / Unit"
+              }
+            ]
+          },
+          {
+            "title": "Work order details",
+            "type": "form",
+            "items": [
+              {
+                "label": "Name of the Principal Employer",
+                "required": true
+              },
+              {
+                "label": "Name of the supervisor / Auth. Personnel representing the contractor",
+                "required": true
+              },
+              {
+                "label": "Designation of the Principal Employer",
+                "required": true
+              },
+              {
+                "label": "Contact Number of the Supervisor / Auth. Personnel representing the contractor",
+                "required": true
+              },
+              {
+                "label": "Address of the Principal Employer",
+                "input": "textarea"
+              },
+              {
+                "label": "Alternate Contact Number of the Supervisor / Auth. Personnel representing the contractor"
+              },
+              {
+                "label": "Work Location (State)",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Andhra Pradesh",
+                  "Arunachal Pradesh",
+                  "Assam",
+                  "Bihar",
+                  "Chhattisgarh",
+                  "Goa",
+                  "Gujarat",
+                  "Haryana",
+                  "Himachal Pradesh",
+                  "Jharkhand",
+                  "Karnataka",
+                  "Kerala",
+                  "Madhya Pradesh",
+                  "Maharashtra",
+                  "Manipur",
+                  "Meghalaya",
+                  "Mizoram",
+                  "Nagaland",
+                  "Odisha",
+                  "Punjab",
+                  "Rajasthan",
+                  "Sikkim",
+                  "Tamil Nadu",
+                  "Telangana",
+                  "Tripura",
+                  "Uttar Pradesh",
+                  "Uttarakhand",
+                  "West Bengal",
+                  "Andaman and Nicobar Islands",
+                  "Chandigarh",
+                  "Dadra and Nagar Haveli and Daman and Diu",
+                  "Delhi",
+                  "Jammu and Kashmir",
+                  "Ladakh",
+                  "Lakshadweep",
+                  "Puducherry"
+                ]
+              },
+              {
+                "label": "Email Address of the Supervisor / Auth. Personnel representing the contractor"
+              },
+              {
+                "label": "Work Location (District)",
+                "required": true
+              },
+              {
+                "label": "Alternate Email Address of the Supervisor / Auth. Personnel representing the contractor"
+              },
+              {
+                "label": "Nature of Work",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Coal Loading and Transportation",
+                  "MDO",
+                  "Mining Activities",
+                  "Civil",
+                  "E & M",
+                  "Watch and Ward",
+                  "Others"
+                ]
+              },
+              {
+                "label": "Upload Labour License [ PDF file less than 1MB]",
+                "input": "file"
+              },
+              {
+                "label": "Area of Operation",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Surface",
+                  "Under ground"
+                ]
+              },
+              {
+                "label": "Remarks"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Submit"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wo_new",
+        "title": "New Work Order / Contract",
+        "blocks": [
+          {
+            "title": "Notes",
+            "type": "notes",
+            "items": [
+              {
+                "label": "Note: Please fill in the details below and submit for approval by admin user corresponding to selection made in Company/Area/Unit fields."
+              },
+              {
+                "label": "Note: Fields marked * are mandatory."
+              }
+            ]
+          },
+          {
+            "title": "Work order details",
+            "type": "form",
+            "items": [
+              {
+                "label": "Work Order Number",
+                "required": true
+              },
+              {
+                "label": "Party GST Number",
+                "originalLabel": "NIC Code"
+              },
+              {
+                "label": "Name of the Work",
+                "required": true,
+                "input": "textarea"
+              },
+              {
+                "label": "Name of the Principal Employer",
+                "required": true
+              },
+              {
+                "label": "Date of Commencement",
+                "required": true,
+                "input": "date"
+              },
+              {
+                "label": "Designation of the Principal Employer",
+                "required": true
+              },
+              {
+                "label": "Date of Completion",
+                "required": true,
+                "input": "date"
+              },
+              {
+                "label": "Postal Address of the Principal Employer",
+                "originalLabel": "Address of the Principal Employer",
+                "input": "textarea"
+              },
+              {
+                "label": "Company",
+                "required": true
+              },
+              {
+                "label": "Contact Details of Principal Employer",
+                "originalLabel": "Contact Number of the Supervisor / Auth. Personnel representing the contractor",
+                "required": true
+              },
+              {
+                "label": "Work Location (State)",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Andhra Pradesh",
+                  "Arunachal Pradesh",
+                  "Assam",
+                  "Bihar",
+                  "Chhattisgarh",
+                  "Goa",
+                  "Gujarat",
+                  "Haryana",
+                  "Himachal Pradesh",
+                  "Jharkhand",
+                  "Karnataka",
+                  "Kerala",
+                  "Madhya Pradesh",
+                  "Maharashtra",
+                  "Manipur",
+                  "Meghalaya",
+                  "Mizoram",
+                  "Nagaland",
+                  "Odisha",
+                  "Punjab",
+                  "Rajasthan",
+                  "Sikkim",
+                  "Tamil Nadu",
+                  "Telangana",
+                  "Tripura",
+                  "Uttar Pradesh",
+                  "Uttarakhand",
+                  "West Bengal",
+                  "Andaman and Nicobar Islands",
+                  "Chandigarh",
+                  "Dadra and Nagar Haveli and Daman and Diu",
+                  "Delhi",
+                  "Jammu and Kashmir",
+                  "Ladakh",
+                  "Lakshadweep",
+                  "Puducherry"
+                ]
+              },
+              {
+                "label": "Work Location (District)",
+                "required": true
+              },
+              {
+                "label": "Remarks"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Submit"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_engage",
+        "title": "Engage Workmen against Work Order",
+        "blocks": [
+          {
+            "title": "Select Work Order:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Work Order",
+                "input": "select",
+                "options": [
+                  "— select work order —"
+                ]
+              }
+            ]
+          },
+          {
+            "title": "List of Workmen",
+            "type": "table",
+            "items": [
+              {
+                "label": "Select"
+              },
+              {
+                "label": "New Engagement From"
+              },
+              {
+                "label": "Full Name"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Date of Birth"
+              },
+              {
+                "label": "Gender"
+              },
+              {
+                "label": "Category"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Last Attendance Date"
+              },
+              {
+                "label": "Engagement From"
+              },
+              {
+                "label": "Engaged in (Work Order)"
+              },
+              {
+                "label": "Appointment Letter"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Engage Selected"
+              },
+              {
+                "label": "New Workman"
+              },
+              {
+                "label": "FORM A"
+              },
+              {
+                "label": "Download Excel"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_active",
+        "title": "Active Workmen",
+        "blocks": [
+          {
+            "title": "Top buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Bulk Accommodation"
+              }
+            ]
+          },
+          {
+            "title": "Workmen list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Name"
+              },
+              {
+                "label": "Surname"
+              },
+              {
+                "label": "Date of Birth"
+              },
+              {
+                "label": "Gender"
+              },
+              {
+                "label": "Skill Category"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Engaged in (Workorder)"
+              },
+              {
+                "label": "Engaged From"
+              },
+              {
+                "label": "Last Attendance Date"
+              },
+              {
+                "label": "Action"
+              },
+              {
+                "label": "Engagement Before Last Attendance"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_inactive",
+        "title": "Inactive Workmen",
+        "blocks": [
+          {
+            "title": "Top buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Bulk Accommodation"
+              }
+            ]
+          },
+          {
+            "title": "Workmen list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Name"
+              },
+              {
+                "label": "Surname"
+              },
+              {
+                "label": "Date of Birth"
+              },
+              {
+                "label": "Gender"
+              },
+              {
+                "label": "Skill Category"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Engaged in (Workorder)"
+              },
+              {
+                "label": "Engaged From"
+              },
+              {
+                "label": "Last Attendance Date"
+              },
+              {
+                "label": "Action"
+              },
+              {
+                "label": "Engagement Before Last Attendance"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_photo",
+        "title": "Workmen Photo",
+        "blocks": [
+          {
+            "title": "Workmen photo list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Name"
+              },
+              {
+                "label": "Surname"
+              },
+              {
+                "label": "Date of Birth"
+              },
+              {
+                "label": "Gender"
+              },
+              {
+                "label": "Skill Category"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Photo"
+              },
+              {
+                "label": "Upload"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_moved",
+        "title": "Workmen Moved Out",
+        "blocks": [
+          {
+            "title": "Moved-out list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "ID"
+              },
+              {
+                "label": "Full Name"
+              },
+              {
+                "label": "Date of Birth"
+              },
+              {
+                "label": "Gender"
+              },
+              {
+                "label": "Skill Category"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Worked From"
+              },
+              {
+                "label": "Worked To"
+              },
+              {
+                "label": "Engagement Before Moving Out"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wm_edit",
+        "title": "Edit Workmen - WUIN : ——",
+        "blocks": [
+          {
+            "title": "Notes",
+            "type": "notes",
+            "items": [
+              {
+                "label": "Note: Fields marked * are mandatory."
+              },
+              {
+                "label": "Note: Aadhaar is not editable."
+              }
+            ]
+          },
+          {
+            "title": "Workman Details",
+            "type": "form",
+            "items": [
+              {
+                "label": "Aadhaar",
+                "required": true
+              },
+              {
+                "label": "Name",
+                "required": true
+              },
+              {
+                "label": "Surname"
+              },
+              {
+                "label": "Gender",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Male",
+                  "Female",
+                  "Others"
+                ]
+              },
+              {
+                "label": "Father's/Mother's/Spouse Name",
+                "required": true
+              },
+              {
+                "label": "Date of Birth",
+                "required": true,
+                "input": "date"
+              },
+              {
+                "label": "Nationality",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Indian",
+                  "Other"
+                ]
+              },
+              {
+                "label": "Education Level"
+              },
+              {
+                "label": "Date of Joining",
+                "required": true,
+                "input": "date"
+              },
+              {
+                "label": "Designation",
+                "required": true
+              },
+              {
+                "label": "Skill Category",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Highly Skilled",
+                  "Skilled",
+                  "Semi Skilled",
+                  "Unskilled"
+                ]
+              },
+              {
+                "label": "Type of Employment"
+              },
+              {
+                "label": "Mobile No"
+              },
+              {
+                "label": "PF Type",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "CMPF",
+                  "EPF"
+                ]
+              },
+              {
+                "label": "UAN(EPF)/CMPF No"
+              },
+              {
+                "label": "Group Insurance Number"
+              },
+              {
+                "label": "PAN"
+              },
+              {
+                "label": "ESIC IP"
+              },
+              {
+                "label": "Bank A/C Number",
+                "required": true
+              },
+              {
+                "label": "Bank"
+              },
+              {
+                "label": "Branch (IFSC)"
+              },
+              {
+                "label": "Address",
+                "originalLabel": "Present Address",
+                "required": true,
+                "input": "textarea"
+              },
+              {
+                "label": "Date of Exit",
+                "input": "date"
+              },
+              {
+                "label": "Mark of Identification"
+              },
+              {
+                "label": "Person With Disability",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Yes",
+                  "No"
+                ]
+              },
+              {
+                "label": "Disability Details"
+              },
+              {
+                "label": "Select Religion",
+                "input": "select",
+                "options": [
+                  "Hinduism",
+                  "Islam",
+                  "Christianity",
+                  "Sikhism",
+                  "Buddhism",
+                  "Jainism",
+                  "Other"
+                ]
+              },
+              {
+                "label": "Ex-Servicemen",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Yes",
+                  "No"
+                ]
+              },
+              {
+                "label": "Accommodation",
+                "required": true,
+                "input": "select",
+                "options": [
+                  "Self",
+                  "Company Quarter",
+                  "Contractors' camp"
+                ]
+              },
+              {
+                "label": "Wage Category",
+                "input": "select",
+                "options": [
+                  "HPC",
+                  "Minimum Wages",
+                  "DGR",
+                  "Other"
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Nominee Details",
+            "type": "form",
+            "items": [
+              {
+                "label": "Nominee Name"
+              },
+              {
+                "label": "Nominee Relationship"
+              },
+              {
+                "label": "Nominee DOB",
+                "input": "date"
+              },
+              {
+                "label": "Nominee Aadhaar No"
+              }
+            ]
+          },
+          {
+            "title": "Emergency Contact Details",
+            "type": "form",
+            "items": [
+              {
+                "label": "Emergency Contact Name/Relationship"
+              },
+              {
+                "label": "Emergency Contact Address"
+              },
+              {
+                "label": "Emergency Contact Number"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Update"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "att_new",
+        "title": "New Attendance",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Worker",
+                "originalLabel": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "att_submitted",
+        "title": "Submitted Attendance",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "att_approved",
+        "title": "Approved Attendance",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "att_entry",
+        "title": "Attendance Entry",
+        "blocks": [
+          {
+            "title": "Entry header",
+            "type": "kv",
+            "items": [
+              {
+                "label": "Work Order Reference No"
+              },
+              {
+                "label": "Period"
+              }
+            ]
+          },
+          {
+            "title": "Notes",
+            "type": "notes",
+            "items": [
+              {
+                "label": "Note: Enter the number of days each workman worked in this month. Wages are calculated automatically from it in the Wages section."
+              }
+            ]
+          },
+          {
+            "title": "Attendance grid",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Workman"
+              },
+              {
+                "label": "Designation"
+              },
+              {
+                "label": "Skill Category"
+              },
+              {
+                "label": "Days Worked (this month)",
+                "input": "number"
+              },
+              {
+                "label": "OT Hrs",
+                "input": "number"
+              },
+              {
+                "label": "OT Min",
+                "input": "select",
+                "options": [
+                  "0",
+                  "15",
+                  "30",
+                  "45"
+                ]
+              },
+              {
+                "label": "Remarks"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Save"
+              },
+              {
+                "label": "Download Excel"
+              },
+              {
+                "label": "Submit"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wage_entry",
+        "title": "Wage Entry",
+        "blocks": [
+          {
+            "title": "Entry header",
+            "type": "kv",
+            "items": [
+              {
+                "label": "Work Order Reference No"
+              },
+              {
+                "label": "Period"
+              }
+            ]
+          },
+          {
+            "title": "Notes",
+            "type": "notes",
+            "items": [
+              {
+                "label": "Note: Days Worked comes from the Attendance section and cannot be changed here."
+              },
+              {
+                "label": "Note: Earnings, deductions and Net Earnings are calculated automatically. Only the optional allowance and deduction columns can be entered."
+              }
+            ]
+          },
+          {
+            "title": "Deadline banner",
+            "type": "banner",
+            "items": [
+              {
+                "label": "Wage submission deadline: ——. After the deadline you may continue saving, but submission is no longer available."
+              }
+            ]
+          },
+          {
+            "title": "Wage grid",
+            "type": "table",
+            "items": [
+              {
+                "label": "WUIN"
+              },
+              {
+                "label": "Name"
+              },
+              {
+                "label": "Days Worked",
+                "calc": "From Attendance Entry"
+              },
+              {
+                "label": "Basic Rate",
+                "calc": "Daily rate from rate master (by Skill Category)"
+              },
+              {
+                "label": "VDA Rate",
+                "calc": "Daily VDA from rate master"
+              },
+              {
+                "label": "Basic + VDA Earned",
+                "calc": "(Basic Rate + VDA Rate) × Days Worked"
+              },
+              {
+                "label": "OT",
+                "calc": "OT Hrs/Min from Attendance × OT rate"
+              },
+              {
+                "label": "UG Allowance",
+                "input": "number"
+              },
+              {
+                "label": "Bonus",
+                "input": "number"
+              },
+              {
+                "label": "EDLIS",
+                "input": "number"
+              },
+              {
+                "label": "PLI",
+                "input": "number"
+              },
+              {
+                "label": "Other Earnings",
+                "input": "number"
+              },
+              {
+                "label": "Gross Earnings",
+                "calc": "Basic + VDA Earned + OT + UG Allowance + Bonus + EDLIS + PLI + Other Earnings"
+              },
+              {
+                "label": "EPF/CMPF Deduction",
+                "calc": "12% of Basic + VDA Earned"
+              },
+              {
+                "label": "ESI Deduction",
+                "calc": "0.75% of Gross Earnings"
+              },
+              {
+                "label": "Other Deduction",
+                "input": "number"
+              },
+              {
+                "label": "Damage Recovery",
+                "input": "number"
+              },
+              {
+                "label": "Total Deduction",
+                "calc": "EPF/CMPF + CMPS + ESI + Other Deduction + Fine + Damage Recovery"
+              },
+              {
+                "label": "Net Earnings",
+                "calc": "Gross Earnings − Total Deduction"
+              },
+              {
+                "label": "Get Wage Slip"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Save"
+              },
+              {
+                "label": "Submit"
+              },
+              {
+                "label": "Download Excel"
+              },
+              {
+                "label": "View Wage Statement"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wage_new",
+        "title": "New Wage Entry",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wage_submitted",
+        "title": "Submitted Wages",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              },
+              {
+                "label": "Proof of Wage & PF"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wage_approved",
+        "title": "Approved Wages",
+        "blocks": [
+          {
+            "title": "Select Period:",
+            "type": "filter",
+            "items": [
+              {
+                "label": "Year",
+                "input": "select",
+                "options": [
+                  "2021",
+                  "2022",
+                  "2023",
+                  "2024",
+                  "2025",
+                  "2026"
+                ]
+              },
+              {
+                "label": "Month",
+                "input": "select",
+                "options": [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December"
+                ]
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          },
+          {
+            "title": "Work order list",
+            "type": "table",
+            "items": [
+              {
+                "label": "Sl#"
+              },
+              {
+                "label": "Work Order Number"
+              },
+              {
+                "label": "Name of the Work"
+              },
+              {
+                "label": "Nature of Work"
+              },
+              {
+                "label": "Date of Commencement"
+              },
+              {
+                "label": "Date of Completion"
+              },
+              {
+                "label": "Action"
+              },
+              {
+                "label": "Proof of Wage & PF"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wage_slip",
+        "title": "Worker Wage Slip",
+        "blocks": [
+          {
+            "title": "Search Worker by Unique Number (WUIN)",
+            "type": "filter",
+            "items": [
+              {
+                "label": "WUIN",
+                "input": "text"
+              },
+              {
+                "label": "Search",
+                "input": "button"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "profile",
+        "title": "Contractor Profile",
+        "blocks": [
+          {
+            "title": "Select Firm",
+            "type": "kv",
+            "items": [
+              {
+                "label": "Party Name / Contract Number",
+                "originalLabel": "Name"
+              },
+              {
+                "label": "Bill Number",
+                "originalLabel": "CUIN"
+              },
+              {
+                "label": "Bill Date",
+                "originalLabel": "Firm Name"
+              },
+              {
+                "label": "Taxable Amount",
+                "originalLabel": "Firm Registration No"
+              },
+              {
+                "label": "GST Amount",
+                "originalLabel": "Permanent Address of the Firm"
+              },
+              {
+                "label": "Received Amount",
+                "originalLabel": "State"
+              },
+              {
+                "label": "Received Date",
+                "originalLabel": "Pincode"
+              },
+              {
+                "label": "Deduction",
+                "originalLabel": "Mobile No"
+              },
+              {
+                "label": "Remark",
+                "originalLabel": "Email ID"
+              },
+              {
+                "label": "GST Payment Status against Bill",
+                "originalLabel": "PAN No"
+              },
+              {
+                "label": "EPF Payment Status",
+                "originalLabel": "Aadhar No"
+              },
+              {
+                "label": "ESIC payment Status",
+                "originalLabel": "PF Registration No"
+              },
+              {
+                "label": "Approved"
+              },
+              {
+                "label": "Approved By"
+              },
+              {
+                "label": "Approval Date"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Edit"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "reset_pw",
+        "title": "Reset Password",
+        "blocks": [
+          {
+            "title": "Password",
+            "type": "form",
+            "items": [
+              {
+                "label": "Current Password",
+                "required": true,
+                "input": "password"
+              },
+              {
+                "label": "New Password",
+                "required": true,
+                "input": "password"
+              },
+              {
+                "label": "Confirm New Password",
+                "required": true,
+                "input": "password"
+              }
+            ]
+          },
+          {
+            "title": "Buttons",
+            "type": "buttons",
+            "items": [
+              {
+                "label": "Submit"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": {
+    "hidden": {
+      "wm_edit.details.lwf": true,
+      "wm_edit.details.serviceBook": true,
+      "wm_edit.details.permAddr": true,
+      "wm_edit.details.exitReason": true,
+      "wm_edit.details.social": true,
+      "wm_edit.details.placeOfWork": true,
+      "wm_edit.details.remarks": true,
+      "menu.attendance": true,
+      "wage_entry.grid.fine": true,
+      "wage_entry.grid.cmps": true,
+      "menu.wages.submitted": true,
+      "menu.wages.approved": true,
+      "menu.wages.slip": true,
+      "profile.details.gstin": true,
+      "profile.details.esic": true,
+      "profile.details.contact": true,
+      "profile.details.woRef": true,
+      "profile.details.company": true,
+      "profile.details.area": true,
+      "profile.details.office": true,
+      "profile.details.officeAddr": true,
+      "wo_new.form.svName": true,
+      "wo_new.form.area": true,
+      "wo_new.form.unit": true,
+      "wo_new.form.svPhone2": true,
+      "wo_new.form.svEmail": true,
+      "wo_new.form.svEmail2": true,
+      "wo_new.form.nature": true,
+      "wo_new.form.areaOp": true,
+      "wo_new.form.license": true,
+      "wo_new.form.licenseNo": true,
+      "wo_new.form.maxWorkers": true
+    },
+    "labels": {
+      "att_new.list.workName": "Name of the Worker",
+      "wm_edit.details.presentAddr": "Address",
+      "menu.profile": "Complaince",
+      "menu.profile.details": "Dispatch Register",
+      "profile.details": "Select Firm",
+      "profile.details.name": "Party Name / Contract Number",
+      "profile.details.cuin": "Bill Number",
+      "profile.details.firm": "Bill Date",
+      "profile.details.firmReg": "Taxable Amount",
+      "profile.details.addr": "GST Amount",
+      "profile.details.state": "Received Amount",
+      "profile.details.pin": "Received Date",
+      "profile.details.mobile": "Deduction",
+      "profile.details.email": "Remark",
+      "profile.details.pan": "GST Payment Status against Bill",
+      "profile.details.aadhaar": "EPF Payment Status",
+      "profile.details.pfReg": "ESIC payment Status",
+      "wo_new.form.nic": "Party GST Number",
+      "wo_new.form.svPhone": "Contact Details of Principal Employer",
+      "wo_new.form.peAddr": "Postal Address of the Principal Employer"
+    },
+    "order": {
+      "menu": [
+        "wo",
+        "home",
+        "workmen",
+        "attendance",
+        "wages",
+        "profile",
+        "logout"
+      ]
+    }
+  }
+}

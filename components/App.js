@@ -4,6 +4,11 @@ import { CustProvider, Toolbar, useCust } from "./Cust";
 import Sidebar from "./Sidebar";
 import PageView from "./PageView";
 import { APP_TITLE, SCREEN_BY_ID } from "@/lib/schema";
+import { EMPTY } from "@/lib/resolve";
+
+// "final"     = the client's frozen spec (v1, 12 Oct 2026) baked into lib/schema.js; no customize layer.
+// "prototype" = the old field-selection tool (needs ?k=CLIENT_TOKEN, autosave, Submit final).
+export const APP_MODE = process.env.NEXT_PUBLIC_APP_MODE === "prototype" ? "prototype" : "final";
 
 const readScreen = () => {
   const m = typeof window !== "undefined" && window.location.hash.match(/s=([\w-]+)/);
@@ -15,6 +20,7 @@ export default function App() {
   const [state, setState] = useState({ loading: true });
 
   useEffect(() => {
+    if (APP_MODE === "final") return setState({ data: { overrides: EMPTY, status: "final" } });
     const key = new URLSearchParams(window.location.search).get("k");
     setK(key);
     if (!key) return setState({ error: "This link is missing its access key." });
@@ -57,8 +63,8 @@ function Shell() {
 
   return (
     <div className={`app ${c.customizing ? "customizing" : ""}`}>
-      <Toolbar screen={screen} onJump={go} />
-      {c.locked && (
+      {APP_MODE === "prototype" && <Toolbar screen={screen} onJump={go} />}
+      {APP_MODE === "prototype" && c.locked && (
         <div className="locked-bar">Your selection has been submitted and is now locked. Contact Harshit if you need another round of changes.</div>
       )}
       {c.customizing && showHelp && (
