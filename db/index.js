@@ -21,6 +21,10 @@ async function connect(url) {
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
   const dir = url?.startsWith("pglite:") ? url.slice("pglite:".length) : "./.data/pglite";
+  if (dir !== "memory://") {
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(dir, { recursive: true }); // first run on a fresh checkout: the folder doesn't exist yet
+  }
   return drizzle(new PGlite(dir), { schema: fullSchema });
 }
 

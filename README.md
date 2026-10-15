@@ -10,6 +10,14 @@ npm run db:migrate                                   # creates tables (local PGl
 ADMIN_USERNAME=owner ADMIN_PASSWORD='long-password' npm run db:seed
 npm run dev                                          # http://localhost:3000
 ```
+### Try it with dummy data, then wipe it
+```bash
+npm run db:migrate
+npm run db:demo              # 2 demo firms, 4 orders, 8 workers, Aug + Sep wages, 3 bills; prints 18 PASS/FAIL checks
+npm run db:reset -- --yes    # deletes everything and rebuilds empty tables (refuses without --yes)
+```
+All demo names start with "Demo". `db:demo` only runs on an empty database.
+
 `NEXT_PUBLIC_APP_MODE=prototype` brings back the old field-selection tool (`/?k=…`, `/review?a=…`).
 
 ## Database (`db/schema.js`, migrations in `drizzle/`)
