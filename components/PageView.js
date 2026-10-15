@@ -3,7 +3,9 @@
 import { useCust } from "./Cust";
 import { Label, Tools, useDrag } from "./Edit";
 import { ordered, screenContainer, blockContainer, blockId, itemId, screenTitleId } from "@/lib/resolve";
-import { SCREEN_BY_ID } from "@/lib/schema";
+import { useState } from "react";
+import { SCREEN_BY_ID, WAGE_DEFAULTS } from "@/lib/schema";
+import { computeWageLine } from "@/lib/wages";
 
 export default function PageView({ screen, go }) {
   const c = useCust();
@@ -64,7 +66,7 @@ function BlockShell({ screen, block, siblings, go }) {
   );
 }
 
-const KIND = { stats: "Cards", card: "Panel", table: "Table", form: "Form section", kv: "Details", filter: "Filter", buttons: "Buttons", notes: "Notes", banner: "Banner" };
+const KIND = { rates: "Rate table", stats: "Cards", card: "Panel", table: "Table", form: "Form section", kv: "Details", filter: "Filter", buttons: "Buttons", notes: "Notes", banner: "Banner" };
 
 // Iterates a block's items in the client's order, with per-item tools and drag.
 function useItems(screen, block) {
@@ -164,12 +166,14 @@ function Table({ screen, block, go }) {
                 )}
               </td>
             </tr>
-            {block.items.some((x) => x.input || x.auto) && (
+            {block.live === "wages" ? (
+              <LiveWageRow list={list} />
+            ) : block.items.some((x) => x.input || x.auto) && (
               <tr className="example-row" title="Example row: shows what is typed in and what is calculated. Not real data.">
                 {list.map(({ it, id }) => (
                   <td key={it.id} className={c.hidden(id) ? "is-hidden" : ""}>
                     {it.auto ? <span className="auto-cell">auto</span>
-                      : it.input === "number" ? <input type="number" min="0" max="31" placeholder={it.id === "attDays" ? "e.g. 26" : "0"} />
+                      : it.input === "number" ? <input type="number" min="0" placeholder="0" />
                       : it.input === "select" ? <select defaultValue="">{[<option key="" value="" />, ...(it.options || []).map((o) => <option key={o}>{o}</option>)]}</select>
                       : it.kind === "action" ? <button className="btn btn-primary btn-sm" disabled>{c.label(id, it.btn || it.label)}</button>
                       : <span className="muted">—</span>}
@@ -199,6 +203,8 @@ function Control({ it }) {
       return <input type="password" autoComplete="off" readOnly={ro} />;
     case "button":
       return null;
+    case "number":
+      return <input type="number" min="0" step="any" readOnly={ro} defaultValue={it.def ?? undefined} />;
     default:
       return <input type="text" readOnly={ro} />;
   }
@@ -304,4 +310,95 @@ function Banner({ screen, block }) {
   );
 }
 
-const BLOCKS = { stats: Stats, card: Card, table: Table, form: Form, kv: KV, filter: Filter, buttons: Buttons, notes: Notes, banner: Banner };
+// Example row on the Wage Entry grid that really calculates: type days, OT or extras and every auto column updates.
+// Uses a sample Config (Unskilled, ₹556/day, default deductions); real rows use each work order's Config.
+const DEMO_RATE = { basicDaily: 556, vdaDaily: 0, otMultiplier: WAGE_DEFAULTS.otMultiplier, hoursPerDay: WAGE_DEFAULTS.hoursPerDay };
+const INPUT_KEYS = { attDays: "daysWorked", otHrs: "otHours", otMin: "otMinutes", ug: "ugAllowance", bonus: "bonus", edlis: "edlis", pli: "pli", otherEarn: "otherEarnings", otherDed: "otherDeduction", damage: "damageRecovery" };
+const OUTPUT_KEYS = { basic: "basicRate", vda: "vdaRate", basicPay: "basicVdaEarned", ot: "otAmount", gross: "grossEarnings", epf: "epfDeduction", esi: "esiDeduction", totalDed: "totalDeduction", net: "netEarnings" };
+const inr = (v) => v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export function LiveWageRow({ list }) {
+  const c = useCust();
+  const [v, setV] = useState({ attDays: "26", otHrs: "", otMin: "0" });
+  const set = (k) => (e) => setV((s) => ({ ...s, [k]: e.target.value }));
+  let line = null;
+  let error = null;
+  try {
+    const extras = {};
+    for (const k of ["ug", "bonus", "edlis", "pli", "otherEarn", "otherDed", "damage"]) extras[INPUT_KEYS[k]] = v[k] || 0;
+    line = computeWageLine({
+      daysWorked: v.attDays === "" ? 0 : v.attDays, otHours: v.otHrs || 0, otMinutes: v.otMin || 0,
+      rate: DEMO_RATE, statutory: WAGE_DEFAULTS, extras,
+    });
+  } catch (e) {
+    error = e.message;
+  }
+  return (
+    <>
+      <tr className="example-row live" title="Example row: type a number of days and watch wages and deductions calculate.">
+        {list.map(({ it, id }) => {
+          const hidden = c.hidden(id) ? "is-hidden" : "";
+          if (INPUT_KEYS[it.id]) {
+            return (
+              <td key={it.id} className={hidden}>
+                {it.input === "select" ? (
+                  <select aria-label={it.label} value={v[it.id] ?? "0"} onChange={set(it.id)}>
+                    {(it.options || []).map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input aria-label={it.label} type="number" min="0" step="any" value={v[it.id] ?? ""} placeholder="0" onChange={set(it.id)} />
+                )}
+              </td>
+            );
+          }
+          if (OUTPUT_KEYS[it.id]) {
+            return <td key={it.id} className={`calc-cell ${hidden}`} data-testid={`calc-${it.id}`}>{line ? inr(line[OUTPUT_KEYS[it.id]]) : "—"}</td>;
+          }
+          if (it.id === "wuin") return <td key={it.id} className={hidden}><span className="muted">Example</span></td>;
+          if (it.id === "name") return <td key={it.id} className={hidden}><span className="muted">Sample workman (Unskilled, ₹556/day)</span></td>;
+          if (it.kind === "action") return <td key={it.id} className={hidden}><button className="btn btn-primary btn-sm" disabled>{c.label(id, it.btn || it.label)}</button></td>;
+          return <td key={it.id} className={hidden}><span className="muted">—</span></td>;
+        })}
+      </tr>
+      {error && (
+        <tr><td colSpan={list.length} className="calc-error" role="alert">{error}</td></tr>
+      )}
+    </>
+  );
+}
+
+// Work order Config: per-day wages, one row per skill category.
+function Rates({ screen, block }) {
+  const { list, siblings, container } = useItems(screen, block);
+  return (
+    <div className="form-section">
+      <BlockTitle screen={screen} block={block} />
+      {block.note && <p className="small-note">{block.note}</p>}
+      <table className="tbl rates-tbl">
+        <thead>
+          <tr>
+            <th>Skill Category</th>
+            {list.map(({ it, id }) => (
+              <Item as="th" key={it.id} id={id} it={it} siblings={siblings} container={container}>
+                <Label id={id} def={it.label} />
+                {it.req && <span className="req"> *</span>}
+              </Item>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.label}</td>
+              {list.map(({ it }) => (
+                <td key={it.id}><input type="number" min="0" step="any" aria-label={`${r.label} ${it.label}`} placeholder="0.00" /></td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const BLOCKS = { stats: Stats, card: Card, table: Table, form: Form, kv: KV, filter: Filter, buttons: Buttons, notes: Notes, banner: Banner, rates: Rates };

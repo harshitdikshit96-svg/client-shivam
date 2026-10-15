@@ -8,7 +8,6 @@ Next.js app. The UI is generated from `lib/schema.js`, which now holds the clien
 npm install
 npm run db:migrate                                   # creates tables (local PGlite if DATABASE_URL is unset)
 ADMIN_USERNAME=owner ADMIN_PASSWORD='long-password' npm run db:seed
-npm run rates:set -- --skill "Unskilled" --basic 556 --vda 0 --from 2026-04-01
 npm run dev                                          # http://localhost:3000
 ```
 `NEXT_PUBLIC_APP_MODE=prototype` brings back the old field-selection tool (`/?k=…`, `/review?a=…`).
@@ -17,21 +16,22 @@ npm run dev                                          # http://localhost:3000
 | Table | Holds | Key rules |
 |---|---|---|
 | `app_users` | the single login | unique username, bcrypt hash |
-| `firm_settings` | firm name, CUIN for the dashboard title | exactly one row |
-| `work_orders` | work orders (New / Edit / Ongoing / Completed / Pending) | unique WO number, completion ≥ commencement, status pending→approved→completed |
-| `workmen` | workman profile (~35 fields) | unique WUIN and 12-digit Aadhaar; exit ≥ joining |
-| `engagements` | workman ↔ work order over time | one open engagement per workman |
-| `wage_rates` | daily basic + VDA per skill category, by effective date | unique (skill, date) |
-| `statutory_rates` | EPF %, ESI %, ceilings, by effective date | |
-| `monthly_sheets` | one per work order per month: attendance + wage status | unique (WO, year, month); wages can't move past draft before attendance |
-| `attendance_entries` | days worked (0–31), OT hrs, OT min (0/15/30/45) | one row per workman per sheet |
-| `wage_lines` | calculated wages, with the rates used copied in | net = gross − deductions (enforced) |
-| `dispatch_register` | bills, receipts, GST/EPF/ESIC payment status | unique bill number |
+| `firms` | firms created from the top bar | unique name / CUIN, 6-digit pincode |
+| `work_orders` | work orders of a firm | WO number unique within the firm, completion ≥ commencement |
+| `work_order_config` | the order's Config: EPF %, EPF ceiling, ESI %, ESI limit, OT rate, hours/day, deadline day | sane ranges |
+| `work_order_rates` | Per Day Wage + VDA per skill category, per work order | one row per skill |
+| `workmen` | workman profile of a firm | WUIN and 12-digit Aadhaar unique within the firm |
+| `engagements` | workman ↔ work order over time | same firm (composite FKs), one open engagement per workman |
+| `monthly_sheets` | one per work order per month | draft → submitted (locked) → approved |
+| `wage_lines` | typed days/OT/extras + calculated wages + Config snapshot | 0–31 days, OT minutes 0/15/30/45, net = gross − deductions |
+| `dispatch_register` | bills, receipts, GST/EPF/ESIC payment status of a firm | bill number unique within the firm |
 
 Schema change: edit `db/schema.js` → `npm run db:generate` → commit the new file in `drizzle/` → `npm run db:migrate`.
 
 ## Wage engine
-`lib/wages.js` (pure maths, paise arithmetic) and `lib/payroll.js` (attendance → `wage_lines`).
+`lib/wages.js` (pure maths, paise arithmetic) and `lib/payroll.js`: `saveWageLine` takes the days typed on the
+Wage Entry screen and calculates the line from the work order's Config; `recalculateSheet` re-runs a draft month
+after Config changes; `submitSheet` locks a month. See `docs/CHANGES.md` for the change requests since spec v1.
 Verified against the client's August 2026 CLIP wage sheet: 26 days × ₹556 → gross 14,456, EPF 1,735, ESI 108, net 12,613.
 
 ## Tests

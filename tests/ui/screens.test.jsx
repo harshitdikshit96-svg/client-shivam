@@ -11,46 +11,78 @@ import { EMPTY } from "@/lib/resolve";
 const renderFinal = (ui) =>
   render(<CustProvider k={null} initial={{ overrides: EMPTY, status: "final" }}>{ui}</CustProvider>);
 
-describe("Edit Workmen form", () => {
-  it("shows the agreed fields and none of the removed ones", () => {
-    renderFinal(<PageView screen={SCREEN_BY_ID.wm_edit} go={() => {}} />);
-    for (const label of ["Aadhaar", "Address", "Accommodation", "Wage Category", "Nominee Name"]) {
-      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
-    }
-    for (const gone of ["LWF", "Service Book No", "Permanent Address", "Social Category", "Place of Work", "Reason of Exit"]) {
-      expect(screen.queryByText(gone)).toBeNull();
-    }
-  });
-  it("shows no customize controls", () => {
-    renderFinal(<PageView screen={SCREEN_BY_ID.wm_edit} go={() => {}} />);
-    expect(screen.queryByTitle("Hide")).toBeNull();
-    expect(screen.queryByTitle("Rename")).toBeNull();
-  });
-});
+describe("Wage Entry: type days, everything calculates", () => {
+  const setup = () => renderFinal(<PageView screen={SCREEN_BY_ID.wage_entry} go={() => {}} />);
+  const cell = (id) => screen.getByTestId(`calc-${id}`).textContent;
 
-describe("Wage Entry grid", () => {
-  it("has no Fine or CMPS columns and marks calculated columns", () => {
-    renderFinal(<PageView screen={SCREEN_BY_ID.wage_entry} go={() => {}} />);
+  it("shows the client's August example (26 days × ₹556) on load", () => {
+    setup();
+    expect(cell("gross")).toBe("14,456.00");
+    expect(cell("epf")).toBe("1,735.00");
+    expect(cell("esi")).toBe("108.00");
+    expect(cell("net")).toBe("12,613.00");
+  });
+
+  it("recalculates as soon as days are changed", async () => {
+    setup();
+    const days = screen.getByLabelText("Days Worked");
+    await userEvent.clear(days);
+    await userEvent.type(days, "21");
+    expect(cell("gross")).toBe("11,676.00");
+    expect(cell("net")).toBe("10,187.00");
+  });
+
+  it("adds overtime and extras", async () => {
+    setup();
+    await userEvent.type(screen.getByLabelText("OT Hrs"), "2");
+    await userEvent.selectOptions(screen.getByLabelText("OT Min"), "30");
+    await userEvent.type(screen.getByLabelText("Bonus"), "500");
+    expect(cell("ot")).toBe("347.50");
+    expect(cell("gross")).toBe("15,303.50");
+  });
+
+  it("explains impossible input", async () => {
+    setup();
+    const days = screen.getByLabelText("Days Worked");
+    await userEvent.clear(days);
+    await userEvent.type(days, "40");
+    expect(screen.getByRole("alert")).toHaveTextContent(/daysWorked must be 0–31/);
+  });
+
+  it("has no Fine or CMPS columns", () => {
+    setup();
     const header = screen.getByRole("table").querySelector("thead");
     expect(within(header).queryByText("Fine")).toBeNull();
     expect(within(header).queryByText("CMPS Deduction")).toBeNull();
-    expect(within(header).getByText("Net Earnings")).toBeInTheDocument();
+  });
+});
+
+describe("Work order Config", () => {
+  it("shows a per-day wage row for each skill category and default deductions", () => {
+    renderFinal(<PageView screen={SCREEN_BY_ID.wo_new} go={() => {}} />);
+    for (const s of ["Highly Skilled", "Skilled", "Semi Skilled", "Unskilled"]) {
+      expect(screen.getByLabelText(`${s} Per Day Wage (₹)`)).toBeInTheDocument();
+    }
+    expect(screen.getAllByDisplayValue("12").length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue("0.75").length).toBeGreaterThan(0);
+  });
+});
+
+describe("Edit Workmen form", () => {
+  it("shows the agreed fields and none of the removed ones", () => {
+    renderFinal(<PageView screen={SCREEN_BY_ID.wm_edit} go={() => {}} />);
+    for (const label of ["Aadhaar", "Address", "Accommodation", "Wage Category"]) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    for (const gone of ["LWF", "Service Book No", "Permanent Address", "Social Category"]) expect(screen.queryByText(gone)).toBeNull();
+    expect(screen.queryByTitle("Hide")).toBeNull();
   });
 });
 
 describe("Sidebar", () => {
-  it("lists the client's menu in order", () => {
+  it("lists the client's menu in order, with no Attendance group", () => {
     renderFinal(<Sidebar screen="home" go={() => {}} />);
     const text = screen.getByRole("navigation").textContent;
     const order = ["Work Order", "Home", "Workmen", "Wages", "Compliance", "Logout"].map((l) => text.indexOf(l));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(text).not.toContain("Attendance");
-  });
-  it("navigates to the Dispatch Register", async () => {
-    const visited = [];
-    renderFinal(<Sidebar screen="home" go={(id) => visited.push(id)} />);
-    await userEvent.click(screen.getByText("Compliance"));
-    await userEvent.click(screen.getByText("Dispatch Register"));
-    expect(visited).toContain("dispatch_register");
   });
 });

@@ -19,22 +19,9 @@ CREATE TABLE "app_users" (
 	CONSTRAINT "app_users_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
-CREATE TABLE "attendance_entries" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"sheet_id" integer NOT NULL,
-	"workman_id" integer NOT NULL,
-	"days_worked" numeric(4, 1) NOT NULL,
-	"ot_hours" smallint DEFAULT 0 NOT NULL,
-	"ot_minutes" smallint DEFAULT 0 NOT NULL,
-	"remarks" text,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "days_0_to_31" CHECK ("attendance_entries"."days_worked" >= 0 AND "attendance_entries"."days_worked" <= 31),
-	CONSTRAINT "ot_hours_non_negative" CHECK ("attendance_entries"."ot_hours" >= 0),
-	CONSTRAINT "ot_minutes_quarter_hours" CHECK ("attendance_entries"."ot_minutes" IN (0, 15, 30, 45))
-);
---> statement-breakpoint
 CREATE TABLE "dispatch_register" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"firm_id" integer NOT NULL,
 	"work_order_id" integer,
 	"party_name_contract" text NOT NULL,
 	"bill_number" varchar(64) NOT NULL,
@@ -53,13 +40,13 @@ CREATE TABLE "dispatch_register" (
 	"approval_date" date,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "dispatch_register_bill_number_unique" UNIQUE("bill_number"),
 	CONSTRAINT "bill_amounts_non_negative" CHECK ("dispatch_register"."taxable_amount" >= 0 AND "dispatch_register"."gst_amount" >= 0 AND "dispatch_register"."deduction" >= 0),
 	CONSTRAINT "received_date_with_amount" CHECK ("dispatch_register"."received_amount" IS NULL OR "dispatch_register"."received_date" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE "engagements" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"firm_id" integer NOT NULL,
 	"workman_id" integer NOT NULL,
 	"work_order_id" integer NOT NULL,
 	"engaged_from" date NOT NULL,
@@ -69,12 +56,25 @@ CREATE TABLE "engagements" (
 	CONSTRAINT "engagement_dates_in_order" CHECK ("engagements"."engaged_to" IS NULL OR "engagements"."engaged_to" >= "engagements"."engaged_from")
 );
 --> statement-breakpoint
-CREATE TABLE "firm_settings" (
-	"id" smallint PRIMARY KEY DEFAULT 1 NOT NULL,
-	"firm_name" text DEFAULT 'Secure Eye Security and Manpower Suppliers' NOT NULL,
+CREATE TABLE "firms" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
 	"cuin" varchar(32),
+	"registration_no" text,
+	"gstin" varchar(15),
+	"pan" varchar(10),
+	"pf_registration_no" varchar(32),
+	"esic_no" varchar(32),
+	"mobile" varchar(15),
+	"email" text,
+	"state" text,
+	"address" text,
+	"pincode" varchar(6),
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "firm_settings_single_row" CHECK ("firm_settings"."id" = 1)
+	CONSTRAINT "firms_name_unique" UNIQUE("name"),
+	CONSTRAINT "firms_cuin_unique" UNIQUE("cuin"),
+	CONSTRAINT "pincode_6_digits" CHECK ("firms"."pincode" IS NULL OR "firms"."pincode" ~ '^[0-9]{6}$')
 );
 --> statement-breakpoint
 CREATE TABLE "monthly_sheets" (
@@ -82,72 +82,80 @@ CREATE TABLE "monthly_sheets" (
 	"work_order_id" integer NOT NULL,
 	"year" smallint NOT NULL,
 	"month" smallint NOT NULL,
-	"attendance_status" "sheet_status" DEFAULT 'draft' NOT NULL,
-	"attendance_submitted_at" timestamp with time zone,
-	"wage_status" "sheet_status" DEFAULT 'draft' NOT NULL,
-	"wage_submitted_at" timestamp with time zone,
-	"wage_approved_at" timestamp with time zone,
-	"wage_deadline" date,
+	"status" "sheet_status" DEFAULT 'draft' NOT NULL,
+	"submitted_at" timestamp with time zone,
+	"approved_at" timestamp with time zone,
+	"deadline" date,
 	"proof_of_wage_pf_path" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "month_1_to_12" CHECK ("monthly_sheets"."month" BETWEEN 1 AND 12),
-	CONSTRAINT "year_sane" CHECK ("monthly_sheets"."year" BETWEEN 2020 AND 2100),
-	CONSTRAINT "wages_after_attendance" CHECK ("monthly_sheets"."wage_status" = 'draft' OR "monthly_sheets"."attendance_status" <> 'draft')
-);
---> statement-breakpoint
-CREATE TABLE "statutory_rates" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"effective_from" date NOT NULL,
-	"epf_percent" numeric(5, 2) DEFAULT '12' NOT NULL,
-	"epf_wage_ceiling" numeric(12, 2),
-	"esi_percent" numeric(5, 2) DEFAULT '0.75' NOT NULL,
-	"esi_gross_ceiling" numeric(12, 2) DEFAULT '21000',
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "statutory_rates_effective_from_unique" UNIQUE("effective_from")
+	CONSTRAINT "year_sane" CHECK ("monthly_sheets"."year" BETWEEN 2020 AND 2100)
 );
 --> statement-breakpoint
 CREATE TABLE "wage_lines" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"sheet_id" integer NOT NULL,
 	"workman_id" integer NOT NULL,
-	"wage_rate_id" integer NOT NULL,
-	"statutory_rate_id" integer NOT NULL,
 	"days_worked" numeric(4, 1) NOT NULL,
-	"basic_rate" numeric(12, 2) NOT NULL,
-	"vda_rate" numeric(12, 2) NOT NULL,
-	"basic_vda_earned" numeric(12, 2) NOT NULL,
-	"ot_amount" numeric(12, 2) DEFAULT '0' NOT NULL,
+	"ot_hours" smallint DEFAULT 0 NOT NULL,
+	"ot_minutes" smallint DEFAULT 0 NOT NULL,
 	"ug_allowance" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"bonus" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"edlis" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"pli" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"other_earnings" numeric(12, 2) DEFAULT '0' NOT NULL,
+	"other_deduction" numeric(12, 2) DEFAULT '0' NOT NULL,
+	"damage_recovery" numeric(12, 2) DEFAULT '0' NOT NULL,
+	"remarks" text,
+	"skill_category" "skill_category" NOT NULL,
+	"basic_rate" numeric(12, 2) NOT NULL,
+	"vda_rate" numeric(12, 2) NOT NULL,
+	"epf_percent" numeric(5, 2) NOT NULL,
+	"esi_percent" numeric(5, 2) NOT NULL,
+	"ot_multiplier" numeric(4, 2) NOT NULL,
+	"basic_vda_earned" numeric(12, 2) NOT NULL,
+	"ot_amount" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"gross_earnings" numeric(12, 2) NOT NULL,
 	"epf_deduction" numeric(12, 2) NOT NULL,
 	"esi_deduction" numeric(12, 2) NOT NULL,
-	"other_deduction" numeric(12, 2) DEFAULT '0' NOT NULL,
-	"damage_recovery" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"total_deduction" numeric(12, 2) NOT NULL,
 	"net_earnings" numeric(12, 2) NOT NULL,
 	"calculated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "days_0_to_31" CHECK ("wage_lines"."days_worked" >= 0 AND "wage_lines"."days_worked" <= 31),
+	CONSTRAINT "ot_hours_non_negative" CHECK ("wage_lines"."ot_hours" >= 0),
+	CONSTRAINT "ot_minutes_quarter_hours" CHECK ("wage_lines"."ot_minutes" IN (0, 15, 30, 45)),
 	CONSTRAINT "net_is_gross_minus_deductions" CHECK ("wage_lines"."net_earnings" = "wage_lines"."gross_earnings" - "wage_lines"."total_deduction"),
 	CONSTRAINT "extras_non_negative" CHECK ("wage_lines"."ug_allowance" >= 0 AND "wage_lines"."bonus" >= 0 AND "wage_lines"."edlis" >= 0 AND "wage_lines"."pli" >= 0 AND "wage_lines"."other_earnings" >= 0 AND "wage_lines"."other_deduction" >= 0 AND "wage_lines"."damage_recovery" >= 0)
 );
 --> statement-breakpoint
-CREATE TABLE "wage_rates" (
-	"id" serial PRIMARY KEY NOT NULL,
+CREATE TABLE "work_order_config" (
+	"work_order_id" integer PRIMARY KEY NOT NULL,
+	"epf_percent" numeric(5, 2) DEFAULT '12' NOT NULL,
+	"epf_wage_ceiling" numeric(12, 2),
+	"esi_percent" numeric(5, 2) DEFAULT '0.75' NOT NULL,
+	"esi_gross_ceiling" numeric(12, 2) DEFAULT '21000',
+	"ot_multiplier" numeric(4, 2) DEFAULT '2' NOT NULL,
+	"hours_per_day" smallint DEFAULT 8 NOT NULL,
+	"deadline_day" smallint,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "config_percents_sane" CHECK ("work_order_config"."epf_percent" BETWEEN 0 AND 100 AND "work_order_config"."esi_percent" BETWEEN 0 AND 100),
+	CONSTRAINT "config_ot_sane" CHECK ("work_order_config"."ot_multiplier" >= 1 AND "work_order_config"."hours_per_day" BETWEEN 1 AND 24),
+	CONSTRAINT "config_deadline_day" CHECK ("work_order_config"."deadline_day" IS NULL OR "work_order_config"."deadline_day" BETWEEN 1 AND 31)
+);
+--> statement-breakpoint
+CREATE TABLE "work_order_rates" (
+	"work_order_id" integer NOT NULL,
 	"skill_category" "skill_category" NOT NULL,
 	"basic_daily" numeric(12, 2) NOT NULL,
 	"vda_daily" numeric(12, 2) DEFAULT '0' NOT NULL,
-	"ot_multiplier" numeric(4, 2) DEFAULT '2' NOT NULL,
-	"hours_per_day" smallint DEFAULT 8 NOT NULL,
-	"effective_from" date NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "wage_rate_positive" CHECK ("wage_rates"."basic_daily" > 0 AND "wage_rates"."vda_daily" >= 0)
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "work_order_rates_work_order_id_skill_category_pk" PRIMARY KEY("work_order_id","skill_category"),
+	CONSTRAINT "rate_positive" CHECK ("work_order_rates"."basic_daily" > 0 AND "work_order_rates"."vda_daily" >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE "work_orders" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"firm_id" integer NOT NULL,
 	"wo_number" varchar(64) NOT NULL,
 	"wouin" varchar(32),
 	"party_gst" varchar(15),
@@ -175,12 +183,13 @@ CREATE TABLE "work_orders" (
 	"status" "wo_status" DEFAULT 'pending' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "work_orders_wo_number_unique" UNIQUE("wo_number"),
+	CONSTRAINT "work_orders_firm_id_id" UNIQUE("firm_id","id"),
 	CONSTRAINT "wo_dates_in_order" CHECK ("work_orders"."completion_date" >= "work_orders"."commencement_date")
 );
 --> statement-breakpoint
 CREATE TABLE "workmen" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"firm_id" integer NOT NULL,
 	"wuin" varchar(32) NOT NULL,
 	"aadhaar" char(12) NOT NULL,
 	"name" text NOT NULL,
@@ -222,28 +231,30 @@ CREATE TABLE "workmen" (
 	"photo_path" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "workmen_wuin_unique" UNIQUE("wuin"),
-	CONSTRAINT "workmen_aadhaar_unique" UNIQUE("aadhaar"),
+	CONSTRAINT "workmen_firm_id_id" UNIQUE("firm_id","id"),
 	CONSTRAINT "aadhaar_12_digits" CHECK ("workmen"."aadhaar" ~ '^[0-9]{12}$'),
 	CONSTRAINT "nominee_aadhaar_12_digits" CHECK ("workmen"."nominee_aadhaar" IS NULL OR "workmen"."nominee_aadhaar" ~ '^[0-9]{12}$'),
 	CONSTRAINT "exit_after_joining" CHECK ("workmen"."date_of_exit" IS NULL OR "workmen"."date_of_exit" >= "workmen"."date_of_joining")
 );
 --> statement-breakpoint
-ALTER TABLE "attendance_entries" ADD CONSTRAINT "attendance_entries_sheet_id_monthly_sheets_id_fk" FOREIGN KEY ("sheet_id") REFERENCES "public"."monthly_sheets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "attendance_entries" ADD CONSTRAINT "attendance_entries_workman_id_workmen_id_fk" FOREIGN KEY ("workman_id") REFERENCES "public"."workmen"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "dispatch_register" ADD CONSTRAINT "dispatch_register_firm_id_firms_id_fk" FOREIGN KEY ("firm_id") REFERENCES "public"."firms"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dispatch_register" ADD CONSTRAINT "dispatch_register_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engagements" ADD CONSTRAINT "engagements_workman_id_workmen_id_fk" FOREIGN KEY ("workman_id") REFERENCES "public"."workmen"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engagements" ADD CONSTRAINT "engagements_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "engagements" ADD CONSTRAINT "engagement_workman_same_firm" FOREIGN KEY ("firm_id","workman_id") REFERENCES "public"."workmen"("firm_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "engagements" ADD CONSTRAINT "engagement_work_order_same_firm" FOREIGN KEY ("firm_id","work_order_id") REFERENCES "public"."work_orders"("firm_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "monthly_sheets" ADD CONSTRAINT "monthly_sheets_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "wage_lines" ADD CONSTRAINT "wage_lines_sheet_id_monthly_sheets_id_fk" FOREIGN KEY ("sheet_id") REFERENCES "public"."monthly_sheets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "wage_lines" ADD CONSTRAINT "wage_lines_workman_id_workmen_id_fk" FOREIGN KEY ("workman_id") REFERENCES "public"."workmen"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wage_lines" ADD CONSTRAINT "wage_lines_wage_rate_id_wage_rates_id_fk" FOREIGN KEY ("wage_rate_id") REFERENCES "public"."wage_rates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wage_lines" ADD CONSTRAINT "wage_lines_statutory_rate_id_statutory_rates_id_fk" FOREIGN KEY ("statutory_rate_id") REFERENCES "public"."statutory_rates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "one_attendance_row_per_workman" ON "attendance_entries" USING btree ("sheet_id","workman_id");--> statement-breakpoint
-CREATE INDEX "dispatch_register_bill_date_idx" ON "dispatch_register" USING btree ("bill_date");--> statement-breakpoint
+ALTER TABLE "work_order_config" ADD CONSTRAINT "work_order_config_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "work_order_rates" ADD CONSTRAINT "work_order_rates_work_order_id_work_orders_id_fk" FOREIGN KEY ("work_order_id") REFERENCES "public"."work_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_firm_id_firms_id_fk" FOREIGN KEY ("firm_id") REFERENCES "public"."firms"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workmen" ADD CONSTRAINT "workmen_firm_id_firms_id_fk" FOREIGN KEY ("firm_id") REFERENCES "public"."firms"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "bill_number_per_firm" ON "dispatch_register" USING btree ("firm_id","bill_number");--> statement-breakpoint
+CREATE INDEX "dispatch_register_bill_date_idx" ON "dispatch_register" USING btree ("firm_id","bill_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "one_open_engagement_per_workman" ON "engagements" USING btree ("workman_id") WHERE "engagements"."engaged_to" IS NULL;--> statement-breakpoint
 CREATE INDEX "engagements_work_order_idx" ON "engagements" USING btree ("work_order_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "one_sheet_per_work_order_month" ON "monthly_sheets" USING btree ("work_order_id","year","month");--> statement-breakpoint
 CREATE UNIQUE INDEX "one_wage_line_per_workman" ON "wage_lines" USING btree ("sheet_id","workman_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "wage_rate_per_skill_per_date" ON "wage_rates" USING btree ("skill_category","effective_from");--> statement-breakpoint
-CREATE INDEX "work_orders_status_idx" ON "work_orders" USING btree ("status");
+CREATE UNIQUE INDEX "wo_number_per_firm" ON "work_orders" USING btree ("firm_id","wo_number");--> statement-breakpoint
+CREATE INDEX "work_orders_status_idx" ON "work_orders" USING btree ("firm_id","status");--> statement-breakpoint
+CREATE UNIQUE INDEX "wuin_per_firm" ON "workmen" USING btree ("firm_id","wuin");--> statement-breakpoint
+CREATE UNIQUE INDEX "aadhaar_per_firm" ON "workmen" USING btree ("firm_id","aadhaar");

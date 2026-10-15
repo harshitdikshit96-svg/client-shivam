@@ -1,5 +1,5 @@
 {
-  "id": "02256012-a4e3-4002-acf5-5fbe4e6fe9f7",
+  "id": "ca47c189-65fa-46c5-ba11-97ed9abefc5f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -56,132 +56,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.attendance_entries": {
-      "name": "attendance_entries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "sheet_id": {
-          "name": "sheet_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workman_id": {
-          "name": "workman_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "days_worked": {
-          "name": "days_worked",
-          "type": "numeric(4, 1)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ot_hours": {
-          "name": "ot_hours",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "ot_minutes": {
-          "name": "ot_minutes",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "remarks": {
-          "name": "remarks",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "one_attendance_row_per_workman": {
-          "name": "one_attendance_row_per_workman",
-          "columns": [
-            {
-              "expression": "sheet_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "workman_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "attendance_entries_sheet_id_monthly_sheets_id_fk": {
-          "name": "attendance_entries_sheet_id_monthly_sheets_id_fk",
-          "tableFrom": "attendance_entries",
-          "tableTo": "monthly_sheets",
-          "columnsFrom": [
-            "sheet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "attendance_entries_workman_id_workmen_id_fk": {
-          "name": "attendance_entries_workman_id_workmen_id_fk",
-          "tableFrom": "attendance_entries",
-          "tableTo": "workmen",
-          "columnsFrom": [
-            "workman_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "days_0_to_31": {
-          "name": "days_0_to_31",
-          "value": "\"attendance_entries\".\"days_worked\" >= 0 AND \"attendance_entries\".\"days_worked\" <= 31"
-        },
-        "ot_hours_non_negative": {
-          "name": "ot_hours_non_negative",
-          "value": "\"attendance_entries\".\"ot_hours\" >= 0"
-        },
-        "ot_minutes_quarter_hours": {
-          "name": "ot_minutes_quarter_hours",
-          "value": "\"attendance_entries\".\"ot_minutes\" IN (0, 15, 30, 45)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.dispatch_register": {
       "name": "dispatch_register",
       "schema": "",
@@ -190,6 +64,12 @@
           "name": "id",
           "type": "serial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "work_order_id": {
@@ -313,9 +193,36 @@
         }
       },
       "indexes": {
+        "bill_number_per_firm": {
+          "name": "bill_number_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "bill_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "dispatch_register_bill_date_idx": {
           "name": "dispatch_register_bill_date_idx",
           "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "bill_date",
               "isExpression": false,
@@ -330,6 +237,19 @@
         }
       },
       "foreignKeys": {
+        "dispatch_register_firm_id_firms_id_fk": {
+          "name": "dispatch_register_firm_id_firms_id_fk",
+          "tableFrom": "dispatch_register",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
         "dispatch_register_work_order_id_work_orders_id_fk": {
           "name": "dispatch_register_work_order_id_work_orders_id_fk",
           "tableFrom": "dispatch_register",
@@ -345,15 +265,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "dispatch_register_bill_number_unique": {
-          "name": "dispatch_register_bill_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "bill_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "bill_amounts_non_negative": {
@@ -375,6 +287,12 @@
           "name": "id",
           "type": "serial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "workman_id": {
@@ -449,27 +367,31 @@
         }
       },
       "foreignKeys": {
-        "engagements_workman_id_workmen_id_fk": {
-          "name": "engagements_workman_id_workmen_id_fk",
+        "engagement_workman_same_firm": {
+          "name": "engagement_workman_same_firm",
           "tableFrom": "engagements",
           "tableTo": "workmen",
           "columnsFrom": [
+            "firm_id",
             "workman_id"
           ],
           "columnsTo": [
+            "firm_id",
             "id"
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "engagements_work_order_id_work_orders_id_fk": {
-          "name": "engagements_work_order_id_work_orders_id_fk",
+        "engagement_work_order_same_firm": {
+          "name": "engagement_work_order_same_firm",
           "tableFrom": "engagements",
           "tableTo": "work_orders",
           "columnsFrom": [
+            "firm_id",
             "work_order_id"
           ],
           "columnsTo": [
+            "firm_id",
             "id"
           ],
           "onDelete": "restrict",
@@ -487,29 +409,94 @@
       },
       "isRLSEnabled": false
     },
-    "public.firm_settings": {
-      "name": "firm_settings",
+    "public.firms": {
+      "name": "firms",
       "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "smallint",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "default": 1
+          "notNull": true
         },
-        "firm_name": {
-          "name": "firm_name",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'Secure Eye Security and Manpower Suppliers'"
+          "notNull": true
         },
         "cuin": {
           "name": "cuin",
           "type": "varchar(32)",
           "primaryKey": false,
           "notNull": false
+        },
+        "registration_no": {
+          "name": "registration_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gstin": {
+          "name": "gstin",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pan": {
+          "name": "pan",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pf_registration_no": {
+          "name": "pf_registration_no",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esic_no": {
+          "name": "esic_no",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mobile": {
+          "name": "mobile",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pincode": {
+          "name": "pincode",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
@@ -522,12 +509,27 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "firms_name_unique": {
+          "name": "firms_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        },
+        "firms_cuin_unique": {
+          "name": "firms_cuin_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "cuin"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
-        "firm_settings_single_row": {
-          "name": "firm_settings_single_row",
-          "value": "\"firm_settings\".\"id\" = 1"
+        "pincode_6_digits": {
+          "name": "pincode_6_digits",
+          "value": "\"firms\".\"pincode\" IS NULL OR \"firms\".\"pincode\" ~ '^[0-9]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -560,42 +562,28 @@
           "primaryKey": false,
           "notNull": true
         },
-        "attendance_status": {
-          "name": "attendance_status",
+        "status": {
+          "name": "status",
           "type": "sheet_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
         },
-        "attendance_submitted_at": {
-          "name": "attendance_submitted_at",
+        "submitted_at": {
+          "name": "submitted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "wage_status": {
-          "name": "wage_status",
-          "type": "sheet_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "wage_submitted_at": {
-          "name": "wage_submitted_at",
+        "approved_at": {
+          "name": "approved_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "wage_approved_at": {
-          "name": "wage_approved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wage_deadline": {
-          "name": "wage_deadline",
+        "deadline": {
+          "name": "deadline",
           "type": "date",
           "primaryKey": false,
           "notNull": false
@@ -669,79 +657,8 @@
         "year_sane": {
           "name": "year_sane",
           "value": "\"monthly_sheets\".\"year\" BETWEEN 2020 AND 2100"
-        },
-        "wages_after_attendance": {
-          "name": "wages_after_attendance",
-          "value": "\"monthly_sheets\".\"wage_status\" = 'draft' OR \"monthly_sheets\".\"attendance_status\" <> 'draft'"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.statutory_rates": {
-      "name": "statutory_rates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "effective_from": {
-          "name": "effective_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "epf_percent": {
-          "name": "epf_percent",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'12'"
-        },
-        "epf_wage_ceiling": {
-          "name": "epf_wage_ceiling",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "esi_percent": {
-          "name": "esi_percent",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0.75'"
-        },
-        "esi_gross_ceiling": {
-          "name": "esi_gross_ceiling",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'21000'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "statutory_rates_effective_from_unique": {
-          "name": "statutory_rates_effective_from_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "effective_from"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.wage_lines": {
@@ -766,48 +683,25 @@
           "primaryKey": false,
           "notNull": true
         },
-        "wage_rate_id": {
-          "name": "wage_rate_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "statutory_rate_id": {
-          "name": "statutory_rate_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "days_worked": {
           "name": "days_worked",
           "type": "numeric(4, 1)",
           "primaryKey": false,
           "notNull": true
         },
-        "basic_rate": {
-          "name": "basic_rate",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "vda_rate": {
-          "name": "vda_rate",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "basic_vda_earned": {
-          "name": "basic_vda_earned",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ot_amount": {
-          "name": "ot_amount",
-          "type": "numeric(12, 2)",
+        "ot_hours": {
+          "name": "ot_hours",
+          "type": "smallint",
           "primaryKey": false,
           "notNull": true,
-          "default": "'0'"
+          "default": 0
+        },
+        "ot_minutes": {
+          "name": "ot_minutes",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "ug_allowance": {
           "name": "ug_allowance",
@@ -844,6 +738,76 @@
           "notNull": true,
           "default": "'0'"
         },
+        "other_deduction": {
+          "name": "other_deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "damage_recovery": {
+          "name": "damage_recovery",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "remarks": {
+          "name": "remarks",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skill_category": {
+          "name": "skill_category",
+          "type": "skill_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basic_rate": {
+          "name": "basic_rate",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vda_rate": {
+          "name": "vda_rate",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "epf_percent": {
+          "name": "epf_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "esi_percent": {
+          "name": "esi_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ot_multiplier": {
+          "name": "ot_multiplier",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basic_vda_earned": {
+          "name": "basic_vda_earned",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ot_amount": {
+          "name": "ot_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
         "gross_earnings": {
           "name": "gross_earnings",
           "type": "numeric(12, 2)",
@@ -861,20 +825,6 @@
           "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": true
-        },
-        "other_deduction": {
-          "name": "other_deduction",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
-        },
-        "damage_recovery": {
-          "name": "damage_recovery",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'0'"
         },
         "total_deduction": {
           "name": "total_deduction",
@@ -945,38 +895,24 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
-        },
-        "wage_lines_wage_rate_id_wage_rates_id_fk": {
-          "name": "wage_lines_wage_rate_id_wage_rates_id_fk",
-          "tableFrom": "wage_lines",
-          "tableTo": "wage_rates",
-          "columnsFrom": [
-            "wage_rate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "wage_lines_statutory_rate_id_statutory_rates_id_fk": {
-          "name": "wage_lines_statutory_rate_id_statutory_rates_id_fk",
-          "tableFrom": "wage_lines",
-          "tableTo": "statutory_rates",
-          "columnsFrom": [
-            "statutory_rate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "days_0_to_31": {
+          "name": "days_0_to_31",
+          "value": "\"wage_lines\".\"days_worked\" >= 0 AND \"wage_lines\".\"days_worked\" <= 31"
+        },
+        "ot_hours_non_negative": {
+          "name": "ot_hours_non_negative",
+          "value": "\"wage_lines\".\"ot_hours\" >= 0"
+        },
+        "ot_minutes_quarter_hours": {
+          "name": "ot_minutes_quarter_hours",
+          "value": "\"wage_lines\".\"ot_minutes\" IN (0, 15, 30, 45)"
+        },
         "net_is_gross_minus_deductions": {
           "name": "net_is_gross_minus_deductions",
           "value": "\"wage_lines\".\"net_earnings\" = \"wage_lines\".\"gross_earnings\" - \"wage_lines\".\"total_deduction\""
@@ -988,14 +924,114 @@
       },
       "isRLSEnabled": false
     },
-    "public.wage_rates": {
-      "name": "wage_rates",
+    "public.work_order_config": {
+      "name": "work_order_config",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
           "primaryKey": true,
+          "notNull": true
+        },
+        "epf_percent": {
+          "name": "epf_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'12'"
+        },
+        "epf_wage_ceiling": {
+          "name": "epf_wage_ceiling",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esi_percent": {
+          "name": "esi_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.75'"
+        },
+        "esi_gross_ceiling": {
+          "name": "esi_gross_ceiling",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'21000'"
+        },
+        "ot_multiplier": {
+          "name": "ot_multiplier",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'2'"
+        },
+        "hours_per_day": {
+          "name": "hours_per_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 8
+        },
+        "deadline_day": {
+          "name": "deadline_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "work_order_config_work_order_id_work_orders_id_fk": {
+          "name": "work_order_config_work_order_id_work_orders_id_fk",
+          "tableFrom": "work_order_config",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "config_percents_sane": {
+          "name": "config_percents_sane",
+          "value": "\"work_order_config\".\"epf_percent\" BETWEEN 0 AND 100 AND \"work_order_config\".\"esi_percent\" BETWEEN 0 AND 100"
+        },
+        "config_ot_sane": {
+          "name": "config_ot_sane",
+          "value": "\"work_order_config\".\"ot_multiplier\" >= 1 AND \"work_order_config\".\"hours_per_day\" BETWEEN 1 AND 24"
+        },
+        "config_deadline_day": {
+          "name": "config_deadline_day",
+          "value": "\"work_order_config\".\"deadline_day\" IS NULL OR \"work_order_config\".\"deadline_day\" BETWEEN 1 AND 31"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.work_order_rates": {
+      "name": "work_order_rates",
+      "schema": "",
+      "columns": {
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "skill_category": {
@@ -1018,65 +1054,45 @@
           "notNull": true,
           "default": "'0'"
         },
-        "ot_multiplier": {
-          "name": "ot_multiplier",
-          "type": "numeric(4, 2)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'2'"
-        },
-        "hours_per_day": {
-          "name": "hours_per_day",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 8
-        },
-        "effective_from": {
-          "name": "effective_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
-      "indexes": {
-        "wage_rate_per_skill_per_date": {
-          "name": "wage_rate_per_skill_per_date",
-          "columns": [
-            {
-              "expression": "skill_category",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "effective_from",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+      "indexes": {},
+      "foreignKeys": {
+        "work_order_rates_work_order_id_work_orders_id_fk": {
+          "name": "work_order_rates_work_order_id_work_orders_id_fk",
+          "tableFrom": "work_order_rates",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "work_order_rates_work_order_id_skill_category_pk": {
+          "name": "work_order_rates_work_order_id_skill_category_pk",
+          "columns": [
+            "work_order_id",
+            "skill_category"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "wage_rate_positive": {
-          "name": "wage_rate_positive",
-          "value": "\"wage_rates\".\"basic_daily\" > 0 AND \"wage_rates\".\"vda_daily\" >= 0"
+        "rate_positive": {
+          "name": "rate_positive",
+          "value": "\"work_order_rates\".\"basic_daily\" > 0 AND \"work_order_rates\".\"vda_daily\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -1089,6 +1105,12 @@
           "name": "id",
           "type": "serial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "wo_number": {
@@ -1261,9 +1283,36 @@
         }
       },
       "indexes": {
+        "wo_number_per_firm": {
+          "name": "wo_number_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "wo_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "work_orders_status_idx": {
           "name": "work_orders_status_idx",
           "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "status",
               "isExpression": false,
@@ -1277,14 +1326,29 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "work_orders_firm_id_firms_id_fk": {
+          "name": "work_orders_firm_id_firms_id_fk",
+          "tableFrom": "work_orders",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "work_orders_wo_number_unique": {
-          "name": "work_orders_wo_number_unique",
+        "work_orders_firm_id_id": {
+          "name": "work_orders_firm_id_id",
           "nullsNotDistinct": false,
           "columns": [
-            "wo_number"
+            "firm_id",
+            "id"
           ]
         }
       },
@@ -1305,6 +1369,12 @@
           "name": "id",
           "type": "serial",
           "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "wuin": {
@@ -1566,22 +1636,73 @@
           "default": "now()"
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "wuin_per_firm": {
+          "name": "wuin_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "wuin",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "aadhaar_per_firm": {
+          "name": "aadhaar_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "aadhaar",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "workmen_firm_id_firms_id_fk": {
+          "name": "workmen_firm_id_firms_id_fk",
+          "tableFrom": "workmen",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "workmen_wuin_unique": {
-          "name": "workmen_wuin_unique",
+        "workmen_firm_id_id": {
+          "name": "workmen_firm_id_id",
           "nullsNotDistinct": false,
           "columns": [
-            "wuin"
-          ]
-        },
-        "workmen_aadhaar_unique": {
-          "name": "workmen_aadhaar_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "aadhaar"
+            "firm_id",
+            "id"
           ]
         }
       },

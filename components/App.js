@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CustProvider, Toolbar, useCust } from "./Cust";
 import Sidebar from "./Sidebar";
 import PageView from "./PageView";
-import { APP_TITLE, SCREEN_BY_ID } from "@/lib/schema";
+import { APP_TITLE, HEADER, SCREEN_BY_ID } from "@/lib/schema";
 import { EMPTY } from "@/lib/resolve";
 
 // "final"     = the client's frozen spec (v1, 12 Oct 2026) baked into lib/schema.js; no customize layer.
@@ -79,7 +79,18 @@ function Shell() {
       <header className="portal-head">
         <span className="logo" aria-hidden>CP</span>
         <span className="portal-title">{APP_TITLE}</span>
-        <button className="btn btn-outline-danger btn-sm">Logout</button>
+        <div className="head-actions">
+          <label className="firm-switch">
+            <span>{HEADER.firmSwitcher.label}</span>
+            <select defaultValue="" aria-label="Select firm">
+              <option value="" disabled>{HEADER.firmSwitcher.placeholder}</option>
+            </select>
+          </label>
+          {HEADER.actions.map((a) => (
+            <button key={a.id} className="btn btn-primary btn-sm" onClick={() => go(a.to)}>{a.label}</button>
+          ))}
+          <button className="btn btn-outline-danger btn-sm">Logout</button>
+        </div>
       </header>
       <div className="body">
         <Sidebar screen={screen} go={go} />
