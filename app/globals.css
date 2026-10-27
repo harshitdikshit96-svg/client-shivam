@@ -126,6 +126,22 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
   border: 1px solid #ced4da; border-radius: 6px; padding: 7px 10px; background: #fff; max-width: 100%;
 }
 .field.ro input, .field.ro textarea, .field.ro select { background: #e9ecef; }
+/* text field with a suggestion list (Work Location District), drawn like the selects */
+.combo { position: relative; display: flex; }
+.combo input { flex: 1; min-width: 0; padding-right: 32px; }
+.combo-toggle {
+  position: absolute; right: 1px; top: 1px; bottom: 1px; width: 30px; border: 0; background: transparent; border-radius: 0 6px 6px 0;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat; background-position: center; background-size: 12px 12px;
+}
+.combo-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; margin: 0; padding: 4px 0; list-style: none;
+  max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #ced4da; border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(15, 18, 26, .12);
+}
+.combo-list li { padding: 7px 12px; cursor: pointer; }
+.combo-list li.active { background: #eef3fe; }
+.combo-list li.picked { color: var(--blue); font-weight: 600; }
 .req { color: #d63333; }
 
 .kv { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 8px 18px; }
@@ -182,7 +198,8 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 .modal { background: #fff; border-radius: 10px; padding: 20px 22px; max-width: 440px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
 .modal h3 { margin: 0 0 8px; font-size: 18px; }
 .modal p { margin: 0 0 16px; color: #444; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.modal .field { margin-bottom: 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
 /* ---------- review ---------- */
 .review { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
@@ -267,3 +284,85 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 .calc-error { color: var(--danger); background: var(--danger-bg); font-size: 13px; }
 .rates-tbl { min-width: 0; max-width: 640px; }
 .rates-tbl input { width: 140px; border: 1px solid #ced4da; border-radius: 6px; padding: 6px 8px; }
+
+/* ---------- live data: messages, guidance, errors (CR-2) ---------- */
+.notice { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; border: 1px solid; }
+.notice-ok { background: #e6f4ea; border-color: #b7e2c6; color: #1f4b33; }
+.notice-info { background: #e8f0fe; border-color: #c6d7fb; color: #1d3a7a; }
+.notice-error { background: var(--danger-bg); border-color: #efb7bd; color: #58151c; }
+.notice-sub { font-size: 13px; opacity: .85; }
+.notice-actions { margin-left: auto; display: inline-flex; gap: 12px; align-items: center; }
+.guide { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: #fff7e0; border: 1px solid #f2dc9b; color: #5c4400; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+.guide-inline { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; color: #444; }
+.scope { margin: -8px 0 14px; font-size: 13px; color: var(--muted); }
+.field-error { color: var(--danger); font-size: 12.5px; }
+.field.has-error input, .field.has-error select, .field.has-error textarea { border-color: var(--danger); background: #fff8f8; }
+.row-error td { background: #fff8f8; }
+.row-error-msg td { color: var(--danger); background: var(--danger-bg); font-size: 13px; padding: 6px 10px; }
+.tbl td.num, .tbl td.calc-cell { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl td input[type="number"], .tbl td input[type="text"] { width: 76px; border: 1px solid #ced4da; border-radius: 6px; padding: 4px 6px; }
+.tbl td input[type="date"], .tbl td select { border: 1px solid #ced4da; border-radius: 6px; padding: 4px 6px; }
+.totals-row td { border-top: 2px solid var(--border); background: #fafbfc; }
+.current-row td { background: #fffbea; }
+.small { font-size: 12px; }
+.link-btn.plain { text-decoration: none; color: inherit; text-align: left; }
+.link-btn.plain:hover { color: var(--blue); text-decoration: underline; }
+.stat.clickable { cursor: pointer; }
+.stat.clickable:hover { background: var(--blue-dark); }
+.tone-info .card-head { background: #2f6fed; color: #fff; font-weight: 600; }
+.checklist { margin: 0; padding: 10px 18px; list-style: none; }
+.checklist li { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid #f0f1f3; }
+.checklist li:last-child { border-bottom: 0; }
+.checklist li .btn { margin-left: auto; }
+.checklist .tick { width: 18px; color: var(--muted); font-weight: 700; }
+.checklist li.done { color: var(--muted); }
+.checklist li.done .tick { color: var(--green); }
+.checklist li.next { font-weight: 600; }
+.bulk { background: #f1f4f9; border: 1px solid #e3e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+.bulk p { margin: 0 0 8px; font-size: 13.5px; }
+.bulk-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.bulk-row select { border: 1px solid #ced4da; border-radius: 6px; padding: 5px 8px; }
+.bulk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 16px; font-size: 13px; }
+.err-bar { background: var(--danger-bg); color: #58151c; }
+.btn:disabled { opacity: .55; cursor: default; }
+
+/* View Wage Statement / Print Wage Slip print the page without the portal chrome */
+@media print {
+  .portal-head, .sidebar, .btn-row, .filter, .notice, .guide, .notes, .scope { display: none !important; }
+  .body { display: block; }
+  .main { padding: 0; }
+  .tbl td input, .tbl td select { border: 0; }
+}
+.tbl td .link-btn { white-space: nowrap; }
+
+/* the error line under a field has its space reserved, so a message appearing when a field is left never moves
+   the buttons below (a click on Save/Update right after typing would otherwise miss the moving button) */
+.form-grid .field { padding-bottom: 18px; }
+.form-grid .field-error { position: absolute; left: 0; right: 0; bottom: 0; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-grid { row-gap: 2px; }
+
+/* ---------- logged-out home page ---------- */
+.landing { min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(160deg, #eef3fb 0%, #f6f7f9 55%); }
+.landing-head { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #fff; border-bottom: 3px solid #3d7a5e; }
+.landing-title { font-size: 20px; font-weight: 700; }
+.landing-main { flex: 1; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(300px, 400px); gap: 48px; align-items: center; max-width: 1120px; width: 100%; margin: 0 auto; padding: 48px 24px; }
+.landing-intro h1 { font-size: 32px; line-height: 1.25; margin: 0 0 12px; font-weight: 600; }
+.landing-intro > p { font-size: 16px; color: #444; margin: 0 0 24px; max-width: 560px; }
+.landing-features { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.landing-features li { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.landing-features b { color: var(--blue); }
+.landing-features span { font-size: 13px; color: #555; }
+.landing-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(20, 40, 80, .08); }
+.landing-card h2 { margin: 0 0 16px; font-size: 22px; }
+.landing-card form { display: flex; flex-direction: column; gap: 14px; }
+.landing-card .field input { border: 1px solid #ced4da; border-radius: 6px; padding: 9px 11px; font-size: 15px; }
+.landing-card .field.has-error input { border-color: var(--danger); }
+.landing-card .forgot { align-self: flex-start; font-size: 13px; }
+.landing-card .forgot-text { margin: 0; }
+.landing-card code { font-size: 12px; background: #f1f3f5; padding: 1px 5px; border-radius: 4px; }
+.who { font-size: 13px; color: var(--muted); }
+@media (max-width: 900px) {
+  .landing-main { grid-template-columns: 1fr; gap: 28px; padding: 24px 16px; }
+  .landing-intro h1 { font-size: 24px; }
+  .landing-features { grid-template-columns: 1fr; }
+}

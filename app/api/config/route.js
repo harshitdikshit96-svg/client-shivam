@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { readState, writeState } from "@/lib/store";
 import { isAdmin, isClient } from "@/lib/auth";
+import { prototypeOnly } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/config?k=CLIENT_TOKEN  or  ?a=ADMIN_TOKEN
 export async function GET(req) {
+  const off = prototypeOnly();   // closed unless NEXT_PUBLIC_APP_MODE=prototype
+  if (off) return off;
   const { searchParams } = new URL(req.url);
   const admin = isAdmin(searchParams.get("a"));
   if (!admin && !isClient(searchParams.get("k"))) {
@@ -19,6 +22,8 @@ export async function GET(req) {
 
 // PUT { k, overrides } — autosave the client's draft
 export async function PUT(req) {
+  const off = prototypeOnly();   // closed unless NEXT_PUBLIC_APP_MODE=prototype
+  if (off) return off;
   const body = await req.json().catch(() => ({}));
   if (!isClient(body.k)) return NextResponse.json({ error: "Invalid link" }, { status: 401 });
   const cur = await readState();

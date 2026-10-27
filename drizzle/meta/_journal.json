@@ -8,6 +8,27 @@
       "when": 1792045603463,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792054556222,
+      "tag": "0001_cr3_surrogate_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792069823008,
+      "tag": "0002_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793022422481,
+      "tag": "0003_drop_workman_photo",
+      "breakpoints": true
     }
   ]
 }

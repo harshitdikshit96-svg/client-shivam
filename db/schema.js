@@ -10,6 +10,12 @@
 //        and the rates used are copied onto the line, so changing Config never alters a submitted month
 //
 // Money is numeric(12,2) (rupees, exact). Dates without time are `date` (strings "YYYY-MM-DD").
+//
+// Keys: every table has a generated `id` primary key and tables point at each other only through ids, so every
+// typed value (Aadhaar, WUIN, work order number, bill number, firm name…) can be edited without breaking a link.
+// Typed identifiers that people search by (work order number, WUIN, bill number, firm name/CUIN) stay unique
+// within the firm. Format and business rules that may need relaxing (Aadhaar format / uniqueness, phone, PAN…)
+// are not database constraints: they live in lib/rules.js and are checked by lib/ops.js.
 import { sql } from "drizzle-orm";
 import {
   pgTable, pgEnum, serial, integer, smallint, text, varchar, char, date, timestamp, boolean, numeric,
@@ -45,6 +51,16 @@ export const appUsers = pgTable("app_users", {
   createdAt: created(),
 });
 
+// Logged-in browsers. The cookie holds a random token; only its SHA-256 is stored, so a copy of the database cannot
+// be used to log in. Logout and a password change delete rows here, which ends those sessions immediately.
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  createdAt: created(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (t) => [index("sessions_user_idx").on(t.userId)]);
+
 // ---------- firms (navbar: Create Firm / firm switcher) ----------
 export const firms = pgTable("firms", {
   id: serial("id").primaryKey(),
@@ -62,7 +78,7 @@ export const firms = pgTable("firms", {
   pincode: varchar("pincode", { length: 6 }),
   createdAt: created(),
   updatedAt: updated(),
-}, (t) => [check("pincode_6_digits", sql`${t.pincode} IS NULL OR ${t.pincode} ~ '^[0-9]{6}$'`)]);
+});
 
 // ---------- work orders (screens: wo_ongoing / wo_completed / wo_pending / wo_new / wo_edit) ----------
 export const workOrders = pgTable("work_orders", {
@@ -104,7 +120,8 @@ export const workOrders = pgTable("work_orders", {
 
 // ---------- work order Config (entered order by order) ----------
 export const workOrderConfig = pgTable("work_order_config", {
-  workOrderId: integer("work_order_id").primaryKey().references(() => workOrders.id, { onDelete: "cascade" }),
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().unique().references(() => workOrders.id, { onDelete: "cascade" }),
   epfPercent: numeric("epf_percent", { precision: 5, scale: 2 }).notNull().default("12"),
   epfWageCeiling: money("epf_wage_ceiling"),                          // NULL = no cap
   esiPercent: numeric("esi_percent", { precision: 5, scale: 2 }).notNull().default("0.75"),
@@ -121,22 +138,23 @@ export const workOrderConfig = pgTable("work_order_config", {
 
 // Per Day Wage + VDA per skill category, per work order
 export const workOrderRates = pgTable("work_order_rates", {
+  id: serial("id").primaryKey(),
   workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
   skillCategory: skillCategory("skill_category").notNull(),
   basicDaily: money("basic_daily").notNull(),
   vdaDaily: money("vda_daily").notNull().default("0"),
   updatedAt: updated(),
 }, (t) => [
-  primaryKey({ columns: [t.workOrderId, t.skillCategory] }),
+  uniqueIndex("one_rate_per_skill").on(t.workOrderId, t.skillCategory),
   check("rate_positive", sql`${t.basicDaily} > 0 AND ${t.vdaDaily} >= 0`),
 ]);
 
-// ---------- workmen (screen: wm_edit; lists wm_active / wm_inactive / wm_photo / wm_moved) ----------
+// ---------- workmen (screen: wm_edit; lists wm_active / wm_inactive / wm_moved) ----------
 export const workmen = pgTable("workmen", {
   id: serial("id").primaryKey(),                                      // "ID" column on Moved Out list
   firmId: integer("firm_id").notNull().references(() => firms.id, { onDelete: "restrict" }),
   wuin: varchar("wuin", { length: 32 }).notNull(),                    // Workman Unique ID (unique within a firm)
-  aadhaar: char("aadhaar", { length: 12 }).notNull(),                 // unique within a firm; not editable (app rule)
+  aadhaar: varchar("aadhaar", { length: 20 }).notNull(),              // editable; format + uniqueness: lib/rules.js
   name: text("name").notNull(),
   surname: text("surname"),
   gender: gender("gender").notNull(),
@@ -169,19 +187,16 @@ export const workmen = pgTable("workmen", {
   nomineeName: text("nominee_name"),
   nomineeRelationship: text("nominee_relationship"),
   nomineeDob: date("nominee_dob"),
-  nomineeAadhaar: char("nominee_aadhaar", { length: 12 }),
+  nomineeAadhaar: varchar("nominee_aadhaar", { length: 20 }),
   emergencyContactName: text("emergency_contact_name"),               // Name/Relationship
   emergencyContactAddress: text("emergency_contact_address"),
   emergencyContactPhone: varchar("emergency_contact_phone", { length: 15 }),
-  photoPath: text("photo_path"),                                      // Workmen Photo: out of proposal scope, column reserved
   createdAt: created(),
   updatedAt: updated(),
 }, (t) => [
-  check("aadhaar_12_digits", sql`${t.aadhaar} ~ '^[0-9]{12}$'`),
-  check("nominee_aadhaar_12_digits", sql`${t.nomineeAadhaar} IS NULL OR ${t.nomineeAadhaar} ~ '^[0-9]{12}$'`),
   check("exit_after_joining", sql`${t.dateOfExit} IS NULL OR ${t.dateOfExit} >= ${t.dateOfJoining}`),
   uniqueIndex("wuin_per_firm").on(t.firmId, t.wuin),
-  uniqueIndex("aadhaar_per_firm").on(t.firmId, t.aadhaar),
+  index("workmen_aadhaar_idx").on(t.firmId, t.aadhaar),               // looked up, not forced unique (lib/rules.js)
   unique("workmen_firm_id_id").on(t.firmId, t.id),
 ]);
 

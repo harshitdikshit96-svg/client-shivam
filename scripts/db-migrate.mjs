@@ -1,5 +1,7 @@
 // Apply SQL migrations in ./drizzle to DATABASE_URL (Postgres) or local PGlite.
-import { getDb } from "../db/index.js";
+// Neon: migrations use the direct address (DATABASE_URL_UNPOOLED) when it is set, not the connection pooler.
+if (process.env.DATABASE_URL_UNPOOLED) process.env.DATABASE_URL = process.env.DATABASE_URL_UNPOOLED;
+const { getDb } = await import("../db/index.js");
 
 const db = await getDb();
 const url = process.env.DATABASE_URL ?? "";

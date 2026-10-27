@@ -1,5 +1,5 @@
 // Renders screens the way the client will see them (final mode, no customize controls).
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CustProvider } from "@/components/Cust";
@@ -78,11 +78,21 @@ describe("Edit Workmen form", () => {
 });
 
 describe("Sidebar", () => {
-  it("lists the client's menu in order, with no Attendance group", () => {
+  it("lists the client's menu in order, Home first (CR-2), with no Attendance group", () => {
     renderFinal(<Sidebar screen="home" go={() => {}} />);
     const text = screen.getByRole("navigation").textContent;
-    const order = ["Work Order", "Home", "Workmen", "Wages", "Compliance", "Logout"].map((l) => text.indexOf(l));
+    expect(text.startsWith("Home")).toBe(true);
+    const order = ["Home", "Work Order", "Workmen", "Wages", "Compliance", "Logout"].map((l) => text.indexOf(l));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
     expect(text).not.toContain("Attendance");
+  });
+});
+
+describe("Logout", () => {
+  it("is not a dead click: it goes through the app's navigation", async () => {
+    const go = vi.fn();
+    renderFinal(<Sidebar screen="home" go={go} />);
+    await userEvent.click(screen.getByText("Logout"));
+    expect(go).toHaveBeenCalledWith("logout");
   });
 });

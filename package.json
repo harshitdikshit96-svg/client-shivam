@@ -2,6 +2,7 @@
   "name": "client-shivam",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,14 +17,15 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:seed": "node scripts/db-seed.mjs",
+    "db:login": "node scripts/db-login.mjs",
     "db:demo": "node scripts/db-demo.mjs",
     "db:reset": "node scripts/db-reset.mjs"
   },
   "dependencies": {
-    "@vercel/blob": "2.8.1",
+    "@vercel/blob": "2.4.0",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.4",
-    "next": "15.5.27",
+    "next": "15.5.28",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -39,5 +41,10 @@
     "drizzle-kit": "^0.31.11",
     "jsdom": "^30.1.2",
     "vitest": "^5.0.4"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.30"
+    }
   }
 }

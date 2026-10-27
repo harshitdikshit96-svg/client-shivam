@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb } from "../helpers/db";
 import { makeFirm, makeWorkOrder, makeWorkman, engage, makeSheet, configure } from "../helpers/factories";
-import { firms, workOrders, workOrderConfig, workOrderRates, engagements, monthlySheets, wageLines, dispatchRegister } from "@/db/schema";
+import { firms, workOrders, workOrderConfig, workOrderRates, workmen, engagements, monthlySheets, wageLines, dispatchRegister } from "@/db/schema";
 
 let t, firm;
 beforeAll(async () => { t = await createTestDb(); firm = await makeFirm(t.db); });
@@ -11,11 +11,38 @@ afterAll(async () => { await t.close(); });
 
 const rejects = (p) => expect(p).rejects.toThrow();
 
+describe("keys (CR-3)", () => {
+  it("every table's primary key is a generated id, never a typed value", async () => {
+    const { rows } = await t.client.query(`
+      SELECT tc.table_name, kcu.column_name, c.column_default
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema
+      JOIN information_schema.columns c ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name AND c.table_schema = tc.table_schema
+      WHERE tc.table_schema = 'public' AND tc.constraint_type = 'PRIMARY KEY'`);
+    const tables = (await t.client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)).rows.map((r) => r.table_name);
+    expect(rows.map((r) => r.table_name).sort()).toEqual(tables.sort());           // every table has one…
+    for (const r of rows) {
+      expect(r.column_name, r.table_name).toBe("id");                                // …on a column called id…
+      expect(r.column_default, r.table_name).toMatch(/^nextval\(/);                 // …filled in by the database
+    }
+  });
+  it("typed identifiers can be edited: links between records use ids only", async () => {
+    const f = await makeFirm(t.db);
+    const wo = await makeWorkOrder(t.db, f.id);
+    const w = await makeWorkman(t.db, f.id);
+    await engage(t.db, w, wo);
+    await t.db.update(workOrders).set({ woNumber: "RENAMED-1" }).where(eq(workOrders.id, wo.id));
+    await t.db.update(workmen).set({ wuin: "W-RENAMED", aadhaar: "999999999999" }).where(eq(workmen.id, w.id));
+    const [e] = await t.db.select().from(engagements).where(eq(engagements.workmanId, w.id));
+    expect(e.workOrderId).toBe(wo.id);
+  });
+});
+
 describe("firms", () => {
-  it("need a unique name and a 6-digit pincode", async () => {
+  it("need a unique name (formats such as the pincode are checked by lib/rules.js, not the database)", async () => {
     await makeFirm(t.db, { name: "Secure Eye" });
     await rejects(makeFirm(t.db, { name: "Secure Eye" }));
-    await rejects(makeFirm(t.db, { pincode: "2260" }));
+    await expect(makeFirm(t.db, { pincode: "2260" })).resolves.toBeDefined();
   });
   it("cannot be deleted while they have work orders", async () => {
     const f = await makeFirm(t.db);
@@ -70,13 +97,10 @@ describe("work order Config", () => {
 });
 
 describe("workmen", () => {
-  it("need a 12-digit Aadhaar", async () => {
-    await rejects(makeWorkman(t.db, firm.id, { aadhaar: "12345" }));
-  });
-  it("cannot repeat an Aadhaar or WUIN within a firm", async () => {
+  it("cannot repeat a WUIN within a firm (Aadhaar format and duplicates are rules in lib/rules.js)", async () => {
     const w = await makeWorkman(t.db, firm.id);
-    await rejects(makeWorkman(t.db, firm.id, { aadhaar: w.aadhaar }));
     await rejects(makeWorkman(t.db, firm.id, { wuin: w.wuin }));
+    await expect(makeWorkman(t.db, firm.id, { aadhaar: w.aadhaar })).resolves.toBeDefined();
   });
   it("cannot exit before joining", async () => {
     await rejects(makeWorkman(t.db, firm.id, { dateOfJoining: "2026-07-01", dateOfExit: "2026-06-01" }));

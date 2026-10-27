@@ -36,7 +36,7 @@ function Group({ g, siblings, screen, go, open, toggle }) {
   const id = menuGroupId(g.id);
   const drag = useDrag({ container: menuContainer(), siblings, localId: g.id });
   const hidden = c.hidden(id);
-  const activate = () => (g.items ? toggle() : g.screen && go(g.screen));
+  const activate = () => (g.items ? toggle() : go(g.screen ?? g.id)); // Logout has no screen: App explains it
   const head = (
     <div className={`menu-head ${g.items ? "group" : "plain"} ${g.screen === screen ? "active" : ""}`}
       role="button" tabIndex={0} aria-expanded={g.items ? open : undefined}

@@ -1,0 +1,1 @@
+ALTER TABLE "workmen" DROP COLUMN "photo_path";

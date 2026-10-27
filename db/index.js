@@ -16,7 +16,12 @@ async function connect(url) {
   if (url && /^postgres(ql)?:\/\//.test(url)) {
     const { Pool } = await import("pg");
     const { drizzle } = await import("drizzle-orm/node-postgres");
-    return drizzle(new Pool({ connectionString: url, max: 10 }), { schema: fullSchema });
+    // idle connections are closed after 10 s, so serverless instances (Vercel) do not hold them open
+    return drizzle(new Pool({ connectionString: url, max: 10, idleTimeoutMillis: 10000 }), { schema: fullSchema });
+  }
+  if (process.env.VERCEL || (process.env.NODE_ENV === "production" && !process.env.ALLOW_PGLITE)) {
+    // the embedded database is for local development only (it writes to ./.data and is not installed on servers)
+    throw new Error("DATABASE_URL is not set to a postgres:// address. Set it in the server's environment variables (Vercel: Project → Settings → Environment Variables).");
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
