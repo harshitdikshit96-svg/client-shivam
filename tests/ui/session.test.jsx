@@ -113,3 +113,18 @@ describe("logged in", () => {
     expect(await screen.findByText("Your session has ended. Please log in again.")).toBeInTheDocument();
   });
 });
+
+describe("the server has a problem before login", () => {
+  it("a database that was never set up is explained on the login page, not shown as a connection problem", async () => {
+    const msg = "The database has not been set up yet (its tables are missing). Run `npm run db:migrate` against it, then `npm run db:login` — see docs/DEPLOY.md.";
+    global.fetch = vi.fn(async () => json(500, { error: msg, setup: true }));
+    render(<App />);
+    expect(await screen.findByText(msg)).toBeInTheDocument();
+    expect(screen.queryByText(/Could not reach the server/)).toBeNull();
+  });
+  it("a 500 without a readable body still says it is the server, not the connection", async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => { throw new SyntaxError("not json"); } }));
+    render(<App />);
+    expect(await screen.findByText("The server had a problem (500). Please try again in a minute.")).toBeInTheDocument();
+  });
+});

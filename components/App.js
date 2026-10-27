@@ -56,8 +56,11 @@ function Session() {
 
   useEffect(() => {
     fetch("/api/session", { cache: "no-store" })
-      .then((r) => r.json())
-      .then(setAuth)
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        // a server-side fault (e.g. the database not set up) is shown as such, not as a connection problem
+        setAuth(r.ok ? body : { loggedIn: false, hasLogin: true, notice: body.error ?? `The server had a problem (${r.status}). Please try again in a minute.` });
+      })
       .catch(() => setAuth({ loggedIn: false, hasLogin: true, notice: "Could not reach the server. Check your connection and refresh." }));
   }, []);
 

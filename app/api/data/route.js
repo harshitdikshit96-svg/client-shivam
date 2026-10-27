@@ -3,7 +3,7 @@ import { getDb } from "@/db/index";
 import { firmSnapshot } from "@/lib/data";
 import { OPS, UserError, explainDbError } from "@/lib/ops";
 import { SESSION_COOKIE, sessionUser, endOtherSessions } from "@/lib/session";
-import { refuseCrossSite } from "@/lib/http";
+import { refuseCrossSite, databaseFault } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "no-store" };
@@ -18,8 +18,7 @@ export async function GET(req) {
     if (!(await sessionUser(db, req.cookies.get(SESSION_COOKIE)?.value))) return NextResponse.json(LOGGED_OUT, { status: 401 });
     return NextResponse.json(await firmSnapshot(db, firmId), { headers: noStore });
   } catch (e) {
-    console.error("GET /api/data", e);
-    return NextResponse.json({ error: "Could not read the database. Has `npm run db:migrate` been run?" }, { status: 500 });
+    return databaseFault(e, "GET /api/data");
   }
 }
 
