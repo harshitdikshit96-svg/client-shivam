@@ -104,8 +104,9 @@
 - The e2e tests build into `.next-e2e`, so running them no longer breaks a running dev server (`Cannot find module './NNN.js'`).
 
 ## CR-7 — 31 Oct 2026 (review feedback)
-- **Engage Workmen lists only free workmen** (not engaged on any work order). A workman already engaged on an order no
-  longer looks available. To move someone to another order, tick **"Also show workmen engaged on other work orders"**
+- **Engage Workmen** opens on the top approved work order ("— select —" only when there is none) and lists that order's
+  workmen (marked Engaged) plus the free workmen (not engaged anywhere), which can be ticked. A workman engaged on
+  another order no longer looks available. To move someone to another order, tick **"Also show workmen engaged on other work orders"**
   (the old engagement still ends the day before the new one). Opening Engage from a workman's page
   ("Engage on another work order") lists that workman first. When everyone is engaged, the empty list says so.
 - **Dispatch Register: Tax Rate and GST Rate.** After Taxable Amount: **Tax Rate (%)** and **GST Rate (%)**, each a

@@ -422,17 +422,47 @@ describe("Dispatch Register: Tax Rate and GST Rate drop-downs, total calculated 
   });
 });
 
-describe("Engage: only free workmen are listed (CR-7)", () => {
-  it("workmen engaged on a work order are not in the list until 'Also show…' is ticked", async () => {
+describe("Engage: the selected work order's workmen + the free pool (CR-7, corrected)", () => {
+  const listed = () => screen.getAllByRole("row").slice(1).map((r) => r.textContent);
+  it("opens on the top work order (no '— select —'), listing its workmen as Engaged and the free workmen to tick", async () => {
     const { data } = await renderLive("wm_engage");
-    const engaged = data.workmen.filter((w) => w.state === "active");
+    const approved = data.workOrders.filter((o) => o.status === "approved");
+    const dd = screen.getByLabelText("Work Order", { selector: "select" });
+    expect(dd).toHaveValue(String(approved[0].id));
+    expect(within(dd).queryByText("— select —")).toBeNull();
+    const here = data.workmen.filter((w) => w.state === "active" && w.currentWoId === approved[0].id);
+    const elsewhere = data.workmen.filter((w) => w.state === "active" && w.currentWoId !== approved[0].id);
     const free = data.workmen.filter((w) => w.state === "inactive");
-    expect(engaged.length).toBeGreaterThan(0);
-    expect(free.length).toBeGreaterThan(0);
-    for (const w of engaged) expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
-    for (const w of free) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+    expect(here.length && elsewhere.length && free.length).toBeTruthy();
+    for (const w of here) {
+      const row = screen.getByText(w.wuin).closest("tr");
+      expect(within(row).getByText("Engaged"), w.wuin).toBeInTheDocument();
+      expect(within(row).queryByRole("checkbox")).toBeNull();
+    }
+    for (const w of free) expect(within(screen.getByText(w.wuin).closest("tr")).getByRole("checkbox", { name: `Select ${w.wuin}` })).toBeInTheDocument();
+    for (const w of elsewhere) expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
+    expect(listed()[0]).toContain(here[0].wuin);   // this order's workmen first
+  });
+  it("picking another work order lists that order's workmen; 'Also show…' adds those on other orders", async () => {
+    const { data } = await renderLive("wm_engage");
+    const second = data.workOrders.filter((o) => o.status === "approved")[1];
+    await userEvent.selectOptions(screen.getByLabelText("Work Order", { selector: "select" }), String(second.id));
+    for (const w of data.workmen.filter((x) => x.state === "active")) {
+      if (w.currentWoId === second.id) expect(within(screen.getByText(w.wuin).closest("tr")).getByText("Engaged")).toBeInTheDocument();
+      else expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
+    }
     await userEvent.click(screen.getByLabelText("Also show workmen engaged on other work orders (to move them)"));
-    for (const w of engaged) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+    for (const w of data.workmen.filter((x) => x.state === "active")) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+  });
+  it("with no approved work order the drop-down shows '— none available —'", async () => {
+    const empty = await createTestDb();
+    const f = await OPS.createFirm(empty.db, { values: { form: { name: "No Orders" } } });
+    await renderLive("wm_engage", {}, { db: empty.db, firmId: f.id });
+    await empty.close();
+    const dd = screen.getByLabelText("Work Order", { selector: "select" });
+    expect(dd).toHaveValue("");
+    expect(within(dd).getByText("— none available —")).toBeInTheDocument();
+    expect(screen.getByText(/no approved work order to engage workmen on/)).toBeInTheDocument();
   });
   it("opened for one engaged workman (Engage on another work order), that workman is listed first", async () => {
     const snap = await firmSnapshot(t.db, ids.firms[0].id);
@@ -441,17 +471,21 @@ describe("Engage: only free workmen are listed (CR-7)", () => {
     const first = screen.getAllByRole("row")[1];
     expect(first).toHaveTextContent(w.wuin);
   });
-  it("when everyone is engaged, the empty list says how to move someone", async () => {
+  it("when every workman is on another work order, the empty list says how to move someone", async () => {
     const empty = await createTestDb();
     const f = await OPS.createFirm(empty.db, { values: { form: { name: "All Busy" } } });
-    const wo = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: {
-      form: { woNo: "B-1", workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end: "2027-03-31", company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
-      statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } } });
-    await OPS.setWorkOrderStatus(empty.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
+    const order = (woNo) => ({
+      form: { woNo, workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end: "2027-03-31", company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
+      statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } });
+    const a = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: order("A-1") });
+    const b2 = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: order("B-1") });
+    for (const wo of [a, b2]) await OPS.setWorkOrderStatus(empty.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
     const w = await OPS.createWorkman(empty.db, { firmId: f.id, values: { details: { aadhaar: "123412341234", name: "Ramesh", gender: "Male", relative: "Suresh", dob: "1990-01-01", nationality: "Indian", doj: "2026-06-01", designation: "LABOUR", skill: "Unskilled", pfType: "EPF", bankAc: "000111222333", presentAddr: "Ledo", pwd: "No", exServ: "No", accommodation: "Self" } } });
-    await OPS.engageWorkmen(empty.db, { firmId: f.id, workOrderId: wo.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
-    await renderLive("wm_engage", {}, { db: empty.db, firmId: f.id });
+    await OPS.engageWorkmen(empty.db, { firmId: f.id, workOrderId: a.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
+    await renderLive("wm_engage", { wo: b2.id }, { db: empty.db, firmId: f.id });
     expect(screen.getByText(/Every workman is already engaged on a work order/)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Work Order", { selector: "select" }), String(a.id));
+    expect(within(screen.getByText("Ramesh").closest("tr")).getByText("Engaged")).toBeInTheDocument();
     await empty.close();
   });
 });

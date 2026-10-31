@@ -228,6 +228,13 @@ export function printDoc(ctx) {
   return { kind: "slip", title: `Wage Slip — ${line.wuin}, ${periodLabel(sheet.year, sheet.month)}`, doc: wageSlip({ firm: ctx.d.firm, sheet, line, workman }) };
 }
 
+/** Engage Workmen: the work order in the drop-down — the one picked, else the top approved one (null if none). */
+export function engageWoId(ctx) {
+  const approved = ctx.d.workOrders.filter((o) => o.status === "approved");
+  const picked = ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "");
+  return (approved.find((o) => String(o.id) === String(picked)) ?? approved[0])?.id ?? null;
+}
+
 const workmenWord = (n) => `${n} workm${n === 1 ? "an" : "en"}`;
 
 async function saveGrid(ctx, { quiet = false } = {}) {
@@ -391,22 +398,26 @@ export const CONTROLLERS = {
     },
     options: (b, item, ctx) => (item === "wo" ? ctx.d.workOrders.filter((o) => o.status === "approved").map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` })) : null),
     filter: {
-      get: (b, item, ctx) => (item === "showEngaged" ? !!ctx.local.showEngaged : ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "")),
+      get: (b, item, ctx) => (item === "showEngaged" ? !!ctx.local.showEngaged : String(engageWoId(ctx) ?? "")),
       set: (b, item, v, ctx) => ctx.setLocal(item === "showEngaged" ? { showEngaged: v, rowErrors: {} } : { wo: v, rowErrors: {} }),
     },
-    // the free pool: workmen not engaged on any work order. Engaged ones only when asked for (to move them), or the
-    // workman this screen was opened for from his page ("Engage on another work order").
+    // The selected work order's own workmen (marked Engaged) and the free pool (not engaged anywhere, can be ticked).
+    // Workmen on other work orders only when asked for (to move them), or the one this screen was opened for from his
+    // page ("Engage on another work order").
     rows: (b, ctx) => {
+      const wo = engageWoId(ctx);
       const opened = Number(ctx.params.wm) || null;
-      const rows = ctx.d.workmen.filter((w) => w.state === "inactive" || (w.state === "active" && (ctx.local.showEngaged || w.id === opened)));
-      return opened ? [...rows].sort((a, b2) => (b2.id === opened) - (a.id === opened)) : rows;
+      const rows = ctx.d.workmen.filter((w) => w.state === "inactive"
+        || (w.state === "active" && (w.currentWoId === wo || ctx.local.showEngaged || w.id === opened)));
+      const rank = (w) => (w.id === opened ? 0 : w.currentWoId === wo ? 1 : 2);
+      return [...rows].sort((a, b2) => rank(a) - rank(b2));
     },
     empty: (b, ctx) => (ctx.d.workmen.some((w) => w.state === "active")
       ? { text: "Every workman is already engaged on a work order. To move one, tick \"Also show workmen engaged on other work orders\" above; or add a New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }
       : { text: "No workmen in this firm yet. Add them with New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }),
     action: (b, item, ctx) => {
       if (item === "engage") return async () => {
-        const wo = ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "");
+        const wo = engageWoId(ctx);
         const sel = ctx.local.sel ?? {};
         const rows = Object.entries(sel).filter(([, v]) => v.checked).map(([id, v]) => ({ workmanId: Number(id), from: v.from ?? "" }));
         try {

@@ -13,7 +13,7 @@ import { districtsOf } from "@/lib/districts";
 import { billTotals } from "@/lib/bill";
 import { sanitize, checkValue, inputProps, FORMATS } from "@/lib/validate";
 import { useData, fmtDate, fmtMoney, MONTHS as MONTH_LABELS } from "./Data";
-import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine, printDoc } from "./screens";
+import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine, printDoc, engageWoId } from "./screens";
 import { PrintOverlay, FormD, WageSlip } from "./Forms";
 
 // ctx for the live screen (null without live data)
@@ -434,8 +434,8 @@ function DataRow({ row, index, list, block }) {
 
 // Engage Workmen: tick + date per row
 const engagedHere = (row, ctx) => {
-  const wo = Number(ctx.local.wo ?? ctx.params.wo);
-  return wo && row.currentWoId === wo;
+  const wo = engageWoId(ctx);
+  return wo != null && row.currentWoId === wo;
 };
 function EngageTick({ row }) {
   const ctx = usePage();
@@ -451,7 +451,7 @@ function EngageFrom({ row }) {
   const ctx = usePage();
   if (engagedHere(row, ctx)) return <span className="muted">since {fmtDate(row.engagedFrom)}</span>;
   const sel = ctx.local.sel ?? {};
-  const wo = ctx.d.workOrders.find((o) => o.id === Number(ctx.local.wo ?? ctx.params.wo));
+  const wo = ctx.d.workOrders.find((o) => o.id === engageWoId(ctx));
   return (
     <input type="date" aria-label={`New engagement from for ${row.wuin}`} value={sel[row.id]?.from ?? ""} min={[wo?.start, row.doj].filter(Boolean).sort().at(-1)} max={wo?.end}
       onChange={(e) => ctx.setLocal({ sel: { ...sel, [row.id]: { ...sel[row.id], checked: true, from: e.target.value } } })} />
@@ -789,7 +789,7 @@ function Filter({ screen, block }) {
                     <input type="checkbox" aria-label={it.label} checked={!!value} onChange={(e) => f.set(block.id, it.id, e.target.checked, ctx)} />
                   ) : it.input === "select" ? (
                     <select aria-label={it.label} value={value} onChange={(e) => f.set(block.id, it.id, e.target.value, ctx)}>
-                      <option value="" disabled>{dynamic && !options.length ? "— none available —" : "— select —"}</option>
+                      {value === "" && <option value="" disabled>{dynamic && !options.length ? "— none available —" : "— select —"}</option>}
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   ) : (
