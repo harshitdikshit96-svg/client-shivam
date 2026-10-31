@@ -126,6 +126,13 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
   border: 1px solid #ced4da; border-radius: 6px; padding: 7px 10px; background: #fff; max-width: 100%;
 }
 .field.ro input, .field.ro textarea, .field.ro select { background: #e9ecef; }
+/* Dispatch Register: rate drop-down + "Other" box; calculated amounts */
+.rate { display: flex; gap: 8px; align-items: center; }
+.rate select { flex: 1; min-width: 0; }
+.rate-other { display: flex; align-items: center; gap: 4px; }
+.rate-other input { width: 110px; }
+.field input.calc { background: #f1f4f9; color: var(--text); font-weight: 600; }
+
 /* text field with a suggestion list (Work Location District), drawn like the selects */
 .combo { position: relative; display: flex; }
 .combo input { flex: 1; min-width: 0; padding-right: 32px; }
@@ -153,6 +160,8 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 .filter { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; background: #f1f4f9; border: 1px solid #e3e8f0; border-radius: 10px; padding: 18px 22px; }
 .filter-title { color: var(--blue); font-weight: 600; font-size: 15px; }
 .filter-item { display: flex; align-items: center; gap: 6px; position: relative; }
+.filter-item:has(input[type="checkbox"]) { flex-direction: row-reverse; cursor: pointer; }
+.filter input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; }
 .filter-label { font-size: 12px; color: var(--muted); }
 .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .btn-row.right { justify-content: flex-end; }
@@ -365,4 +374,49 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
   .landing-main { grid-template-columns: 1fr; gap: 28px; padding: 24px 16px; }
   .landing-intro h1 { font-size: 24px; }
   .landing-features { grid-template-columns: 1fr; }
+}
+
+/* ---------- statutory documents: Form D wage statement, FORM VIII-C wage slip (components/Forms.js) ---------- */
+.print-overlay { position: fixed; inset: 0; z-index: 200; background: #e9ecef; overflow: auto; }
+.print-bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--border); }
+.print-bar-actions { display: flex; gap: 8px; }
+.print-page { background: #fff; margin: 16px auto; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,.12); color: #000;
+  font-family: "DejaVu Sans", Verdana, Arial, sans-serif; }
+.print-page.landscape { width: min(100% - 32px, 297mm); overflow-x: auto; }
+.print-page.portrait { width: min(100% - 32px, 210mm); }
+.doc-title { text-align: center; font-size: 13px; font-weight: 700; margin: 6px 0 14px; }
+.doc-footer { text-align: right; font-size: 8px; color: #333; margin-top: 18px; }
+
+.formd { font-size: 8px; }
+.formd table { border-collapse: collapse; width: 100%; }
+.formd th, .formd td { border: 1px solid #000; padding: 2px 3px; text-align: left; vertical-align: middle; }
+.formd-head { margin-bottom: 22px; }
+.formd-head th { font-weight: 700; width: 14%; white-space: nowrap; }
+.formd-head td { width: 36%; }
+.formd-grid th { font-weight: 700; vertical-align: middle; }
+.formd-grid td.n { text-align: left; }
+.formd-verified { font-weight: 700; margin-top: 26px; }
+
+.slip { font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+.slip-heading { text-align: center; margin-bottom: 14px; }
+.slip-heading p { margin: 3px 0; }
+.slip .b { font-weight: 700; }
+.slip .big { font-size: 13px; }
+.slip .small { font-size: 9px; }
+.slip-table { width: 100%; border-collapse: collapse; }
+.slip-table td { border: 1px solid #000; padding: 6px 4px; vertical-align: top; }
+.slip-table col.c-no { width: 24px; }
+.slip-table col.c-label { width: 34%; }
+.slip-table .note { display: block; font-size: 8px; margin-top: 6px; }
+.slip-table .sign { text-align: right; padding-top: 14px; }
+
+@media print {
+  body.printing > *:not(.print-overlay) { display: none !important; }
+  body.printing { background: #fff; }
+  .print-overlay { position: static; overflow: visible; background: #fff; }
+  .print-bar, .print-page .doc-footer { display: none; }   /* the CUIN / time stamp prints in the page footer instead */
+  .print-page { margin: 0; padding: 0; box-shadow: none; width: auto !important; overflow: visible !important; }
+  .formd-grid thead { display: table-header-group; }   /* column headings repeat on every page */
+  .formd-grid tr { break-inside: avoid; }
 }

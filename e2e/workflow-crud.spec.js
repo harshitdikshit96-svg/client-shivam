@@ -179,6 +179,8 @@ test("UI-06 Moving to WF-WO-2: the first engagement ends the day before; he is n
   await newOrder(page, "WF-WO-2", "556");
   await go(page, "s=wm_engage");
   await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
+  await expect(main(page).getByLabel("New engagement from for WM00001")).toHaveCount(0);   // engaged on WF-WO-1: not in the free list
+  await main(page).getByLabel("Also show workmen engaged on other work orders (to move them)").check();
   await main(page).getByLabel("New engagement from for WM00001").fill("2026-08-16");
   await page.getByRole("button", { name: "Engage Selected" }).click();
   await expect(notice(page)).toContainText("engaged on WF-WO-2");

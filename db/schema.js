@@ -255,6 +255,8 @@ export const wageLines = pgTable("wage_lines", {
   edlis: money("edlis").notNull().default("0"),
   pli: money("pli").notNull().default("0"),
   otherEarnings: money("other_earnings").notNull().default("0"),
+  cmpsDeduction: money("cmps_deduction").notNull().default("0"),     // CMPS Deduction (typed)
+  fine: money("fine").notNull().default("0"),                         // Fine (typed)
   otherDeduction: money("other_deduction").notNull().default("0"),
   damageRecovery: money("damage_recovery").notNull().default("0"),
   remarks: text("remarks"),
@@ -281,6 +283,7 @@ export const wageLines = pgTable("wage_lines", {
   check("ot_minutes_quarter_hours", sql`${t.otMinutes} IN (0, 15, 30, 45)`),
   check("net_is_gross_minus_deductions", sql`${t.netEarnings} = ${t.grossEarnings} - ${t.totalDeduction}`),
   check("extras_non_negative", sql`${t.ugAllowance} >= 0 AND ${t.bonus} >= 0 AND ${t.edlis} >= 0 AND ${t.pli} >= 0 AND ${t.otherEarnings} >= 0 AND ${t.otherDeduction} >= 0 AND ${t.damageRecovery} >= 0`),
+  check("cmps_fine_non_negative", sql`${t.cmpsDeduction} >= 0 AND ${t.fine} >= 0`),
 ]);
 
 // ---------- Compliance → Dispatch Register (bills and payment status) ----------
@@ -292,7 +295,11 @@ export const dispatchRegister = pgTable("dispatch_register", {
   billNumber: varchar("bill_number", { length: 64 }).notNull(),
   billDate: date("bill_date").notNull(),
   taxableAmount: money("taxable_amount").notNull(),
-  gstAmount: money("gst_amount").notNull().default("0"),
+  taxRate: numeric("tax_rate", { precision: 5, scale: 2 }).notNull().default("0"),   // Tax Rate (%): 0 / 5 / 18 / other
+  taxAmount: money("tax_amount").notNull().default("0"),                              // calculated: taxable × tax rate
+  gstRate: numeric("gst_rate", { precision: 5, scale: 2 }).notNull().default("0"),   // GST Rate (%): 0 / 5 / 18 / other
+  gstAmount: money("gst_amount").notNull().default("0"),                              // calculated: taxable × GST rate
+  totalAmount: money("total_amount").notNull().default("0"),                          // taxable + tax + GST
   receivedAmount: money("received_amount"),
   receivedDate: date("received_date"),
   deduction: money("deduction").notNull().default("0"),
@@ -307,6 +314,8 @@ export const dispatchRegister = pgTable("dispatch_register", {
   updatedAt: updated(),
 }, (t) => [
   check("bill_amounts_non_negative", sql`${t.taxableAmount} >= 0 AND ${t.gstAmount} >= 0 AND ${t.deduction} >= 0`),
+  check("bill_tax_amounts_non_negative", sql`${t.taxAmount} >= 0 AND ${t.totalAmount} >= 0`),
+  check("bill_rates_percent", sql`${t.taxRate} BETWEEN 0 AND 100 AND ${t.gstRate} BETWEEN 0 AND 100`),
   check("received_date_with_amount", sql`${t.receivedAmount} IS NULL OR ${t.receivedDate} IS NOT NULL`),
   uniqueIndex("bill_number_per_firm").on(t.firmId, t.billNumber),
   index("dispatch_register_bill_date_idx").on(t.firmId, t.billDate),

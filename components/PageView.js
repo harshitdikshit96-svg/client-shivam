@@ -10,15 +10,17 @@ import { SCREEN_BY_ID, WAGE_DEFAULTS, SKILL_CATEGORIES, ACCOMMODATION } from "@/
 import { computeWageLine } from "@/lib/wages";
 import { isLockedAfterCreate } from "@/lib/rules";
 import { districtsOf } from "@/lib/districts";
+import { billTotals } from "@/lib/bill";
 import { sanitize, checkValue, inputProps, FORMATS } from "@/lib/validate";
 import { useData, fmtDate, fmtMoney, MONTHS as MONTH_LABELS } from "./Data";
-import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine } from "./screens";
+import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine, printDoc } from "./screens";
+import { PrintOverlay, FormD, WageSlip } from "./Forms";
 
 // ctx for the live screen (null without live data)
 const PageCtx = createContext(null);
 const usePage = () => useContext(PageCtx);
 
-const MONEY_COLS = new Set(["taxable", "gst", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "esi", "otherDed", "damage"]);
+const MONEY_COLS = new Set(["taxable", "tax", "gst", "total", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "cmps", "esi", "fine", "otherDed", "damage"]);
 const fmtValue = (id, v) => (v == null || v === "" ? null : typeof v === "number" && MONEY_COLS.has(id) ? fmtMoney(v) : fmtDate(v));
 
 /** Params for the screen a row button opens. */
@@ -44,6 +46,7 @@ function LivePage({ screen, go, params, live }) {
   const [local, setLocalState] = useState({});
   const top = useRef(null);
   const setLocal = useCallback((patch) => setLocalState((l) => ({ ...l, ...patch })), []);
+  const closePrint = useCallback(() => setLocalState((l) => ({ ...l, print: null })), []);
   const setValues = useCallback((patch) => setValuesState((v) => {
     const next = { ...(v ?? {}) };
     for (const [k, val] of Object.entries(patch)) next[k] = val && typeof val === "object" && !Array.isArray(val) ? { ...val } : val;
@@ -91,8 +94,15 @@ function LivePage({ screen, go, params, live }) {
 
   const guide = ctrl.guide?.(ctx);
   const scope = ctrl.scope?.(ctx);
+  const printing = values != null && !guide?.stop ? printDoc(ctx) : null;
   return (
     <PageCtx.Provider value={ctx}>
+      {printing && (
+        <PrintOverlay title={printing.title} landscape={printing.kind === "formD"} numbered={printing.kind === "formD"}
+          footer={printing.kind === "formD" ? printing.doc.footer : null} onClose={closePrint}>
+          {printing.kind === "formD" ? <FormD doc={printing.doc} /> : <WageSlip doc={printing.doc} />}
+        </PrintOverlay>
+      )}
       <div ref={top} />
       <Notice />
       {guide && <Guide g={guide} />}
@@ -561,12 +571,15 @@ function Control({ it, block, live }) {
   const ro = isReadOnly(it, block, ctx);
   const dynamic = ctx?.ctrl.options?.(block.id, it.id, ctx);
   const options = dynamic ?? (it.options || []).map((o) => ({ value: o, label: o }));
+  if (it.calc && !live) return <input type="text" readOnly className="calc" />;
   if (!live) {
     // static layout (prototype / spec tests)
     switch (it.input) {
       case "select": return <select disabled={ro} defaultValue="">{[<option key="" value="" />, ...options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)]}</select>;
       case "textarea": return <textarea readOnly={ro} rows={2} />;
       case "date": return <input type="date" readOnly={ro} />;
+      case "checkbox": return <input type="checkbox" disabled={ro} />;
+      case "rate": return <select disabled={ro} defaultValue="">{[<option key="" value="" />, ...(it.options || []).map((o) => <option key={o} value={o}>{o}%</option>), <option key="other" value="other">Other</option>]}</select>;
       case "file": return <input type="file" disabled={ro} />;
       case "password": return <input type="password" autoComplete="off" readOnly={ro} />;
       case "button": return null;
@@ -590,6 +603,12 @@ function Control({ it, block, live }) {
   const fmt = it.format ? inputProps(it.format) : { maxLength: FORMATS.text.max };
   if (it.maxLength) fmt.maxLength = it.maxLength;
   const common = { "aria-invalid": err ? true : undefined, "aria-label": it.label, onBlur: check };
+  // calculated from other fields of the form (e.g. Dispatch Register: tax, GST and total from the rates)
+  if (it.calc) {
+    const v = billTotals(ctx.values?.[block.id] ?? {})[it.calc];
+    return <input type="text" readOnly tabIndex={-1} className="calc" aria-label={it.label} value={fmtMoney(Number(v))} />;
+  }
+  if (it.input === "rate") return <RateControl it={it} value={value} readOnly={ro} onChange={set} inputProps={{ ...fmt, ...common }} />;
   switch (it.input) {
     case "select":
       return <select disabled={ro} value={value} onChange={set} {...common}>{[<option key="" value="">{dynamic && !options.length ? "— none available —" : "— select —"}</option>, ...options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)]}</select>;
@@ -609,6 +628,38 @@ function Control({ it, block, live }) {
       }
       return <input type="text" readOnly={ro} value={value} onChange={set} {...fmt} {...common} />;
   }
+}
+
+/**
+ * A percentage picked from a drop-down (0% / 5% / 18% …) or, with "Other", typed in the box that appears.
+ * The value is the percentage as text ("18", "12.5"); a value not in the list shows as Other with the box filled.
+ */
+function RateControl({ it, value, readOnly, onChange, inputProps }) {
+  const [other, setOther] = useState(false);
+  const v = value == null ? "" : String(value);   // shown exactly as typed ("12." while typing 12.5)
+  const listed = v === "" ? null : it.options.find((o) => Number(o) === Number(v));
+  const mode = other || (v !== "" && listed == null) ? "other" : (listed ?? "");
+  const pick = (e) => {
+    const next = e.target.value;
+    setOther(next === "other");
+    onChange({ target: { value: next === "other" ? "" : next } });
+  };
+  return (
+    <div className="rate">
+      <select disabled={readOnly} value={mode} onChange={pick} aria-label={it.label}>
+        <option value="">— select —</option>
+        {it.options.map((o) => <option key={o} value={o}>{o}%</option>)}
+        <option value="other">Other (type the rate)</option>
+      </select>
+      {mode === "other" && (
+        <span className="rate-other">
+          <input type="text" readOnly={readOnly} value={v} onChange={onChange} placeholder="e.g. 12 or 2.5" autoFocus={other} {...inputProps}
+            aria-label={`${it.label} — other rate`} />
+          <span className="muted">%</span>
+        </span>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -686,6 +737,7 @@ function Form({ screen, block }) {
                 <Label id={id} def={it.label} />
                 {it.req && !ro && <span className="req"> *</span>}
                 {ro && ctx && <span className="muted small"> (locked after saving)</span>}
+                {it.calc && <span className="muted small"> (calculated)</span>}
               </label>
               <Control it={it} block={block} live={!!ctx} />
               {err && <span className="field-error">{err}</span>}
@@ -733,7 +785,9 @@ function Filter({ screen, block }) {
               <>
                 <Label id={id} def={it.label} className="filter-label" />
                 {ctx && value !== undefined ? (
-                  it.input === "select" ? (
+                  it.input === "checkbox" ? (
+                    <input type="checkbox" aria-label={it.label} checked={!!value} onChange={(e) => f.set(block.id, it.id, e.target.checked, ctx)} />
+                  ) : it.input === "select" ? (
                     <select aria-label={it.label} value={value} onChange={(e) => f.set(block.id, it.id, e.target.value, ctx)}>
                       <option value="" disabled>{dynamic && !options.length ? "— none available —" : "— select —"}</option>
                       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

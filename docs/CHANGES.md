@@ -102,3 +102,44 @@
 - **Last Attendance Date** stops at the day the engagement ended instead of always the end of the paid month.
 - Dialogs: space between the last field and the buttons.
 - The e2e tests build into `.next-e2e`, so running them no longer breaks a running dev server (`Cannot find module './NNN.js'`).
+
+## CR-7 — 31 Oct 2026 (review feedback)
+- **Engage Workmen lists only free workmen** (not engaged on any work order). A workman already engaged on an order no
+  longer looks available. To move someone to another order, tick **"Also show workmen engaged on other work orders"**
+  (the old engagement still ends the day before the new one). Opening Engage from a workman's page
+  ("Engage on another work order") lists that workman first. When everyone is engaged, the empty list says so.
+- **Dispatch Register: Tax Rate and GST Rate.** After Taxable Amount: **Tax Rate (%)** and **GST Rate (%)**, each a
+  drop-down of 0% / 5% / 18% / Other (Other opens a box for any rate 0–100, decimals allowed). **Tax Amount**, **GST
+  Amount** and **Total Amount** (= taxable + tax + GST) are calculated as you pick, and stored by the server from the same
+  formula (`lib/bill.js`). The amounts can't be typed. The bills list shows Tax, GST and Total.
+  Migration `drizzle/0004_bill_tax_rates.sql` adds `tax_rate`, `tax_amount`, `gst_rate`, `total_amount`. Bills saved
+  before it get their GST rate worked out from the GST amount typed then, and their total.
+
+## CR-8 — 31 Oct 2026 (statutory formats)
+The downloads follow the client's sample formats exactly: headings character for character, each value under its heading.
+- **Form D — "WAGE STATEMENT FOR THE MONTH OF …"** (Wage Entry → **View Wage Statement**, and **Download Excel**):
+  - **Header table:** Name of Firm/Establishment, Name of Owner/Contractor, Work Order Reference No, Name of the Work,
+    and the Dates of Commencement and Completion.
+  - **25 columns,** from Name to EPF/CMPF Account Number.
+  - **"Paid Wages Verified By"** gives the Principal Employer [Designation] and the approval date.
+  - **Printing:** A4 landscape, with "Page n/m" and "Contractor CUIN : … | date time" on every page.
+  - **Download Excel** is now a real `.xlsx` in the same layout (`lib/xlsx.js`, no new dependency). Amounts are numbers;
+    bank account, UAN and Group Insurance numbers are text, so no digits or leading zeros are lost.
+- **FORM – VIII-C wage slip** (Worker Wage Slip → **Print Wage Slip**):
+  - The 12 numbered rows of the format.
+  - **Basic and D.A.:** the month's amounts, with the daily rates under them.
+  - **Other Allowances:** UG + Bonus + EDLIS + PLI + Other Earnings.
+  - **Others deduction:** CMPS + Fine + Damage Recovery + Other Deduction (CR-9).
+  - **Masking:** UAN shows as XXXXXXXX + last 4 digits, the bank account as ****** + last 4 digits.
+  - **Printing:** A4 portrait.
+- Both open full-screen with **Print / Save as PDF**; printing outputs only the document (`components/Forms.js`).
+  The headings and values are built once in `lib/forms.js`.
+
+## CR-9 — 31 Oct 2026 (review feedback: "all the things are calculated through my office")
+- **Wage Entry: CMPS Deduction and Fine** are columns the office types in, beside Other Deduction and Damage Recovery
+  (they had been left out in CR-1). Total Deduction = EPF/CMPF + CMPS + ESI + Fine + Damage Recovery + Other Deduction.
+  Form D shows them under their headings, the wage slip includes them in "c) Others", and the Worker Wage Slip screen
+  lists them. Migration `drizzle/0005_wage_cmps_fine.sql`; existing wage lines get 0.
+- **Form D "Name of Owner/Contractor"** is no longer typed separately: it is the work order's **"Name of the supervisor /
+  Auth. Personnel representing the contractor"** (entered when the work order is created), or the firm name when that is blank.
+  The manual owner-name field added earlier the same day was removed before release.

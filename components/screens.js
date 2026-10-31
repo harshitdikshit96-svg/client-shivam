@@ -18,7 +18,9 @@
 //   action(block, item, ctx)         what a button under the screen does
 import { computeWageLine } from "@/lib/wages";
 import { WAGE_DEFAULTS, SCREEN_BY_ID } from "@/lib/schema";
-import { MONTHS, periodLabel, fmtDate, fmtMoney, todayIso, engagedInMonth, orderInMonth, downloadCsv } from "./Data";
+import { MONTHS, periodLabel, fmtDate, fmtMoney, todayIso, engagedInMonth, orderInMonth, downloadCsv, downloadFile } from "./Data";
+import { formD, formDSheet, wageSlip, periodText } from "@/lib/forms";
+import { buildXlsx, XLSX_TYPE } from "@/lib/xlsx";
 
 // ---------- helpers ----------
 const orderById = (d, id) => d.workOrders.find((o) => o.id === Number(id)) ?? null;
@@ -116,7 +118,7 @@ const sheetRow = (s) => ({ ...s, period: periodLabel(s.year, s.month), wageStatu
 const csvColumns = (screenId, blockId) => SCREEN_BY_ID[screenId].blocks.find((b) => b.id === blockId).items.filter((i) => i.kind !== "action" && i.id !== "select" && i.id !== "newFrom");
 
 // ---------- wage grid ----------
-export const WAGE_INPUTS = { attDays: "daysWorked", otHrs: "otHours", otMin: "otMinutes", ug: "ugAllowance", bonus: "bonus", edlis: "edlis", pli: "pli", otherEarn: "otherEarnings", otherDed: "otherDeduction", damage: "damageRecovery" };
+export const WAGE_INPUTS = { attDays: "daysWorked", otHrs: "otHours", otMin: "otMinutes", ug: "ugAllowance", bonus: "bonus", edlis: "edlis", pli: "pli", otherEarn: "otherEarnings", cmps: "cmpsDeduction", fine: "fine", otherDed: "otherDeduction", damage: "damageRecovery" };
 export const WAGE_OUTPUTS = { basic: "basicRate", vda: "vdaRate", basicPay: "basicVdaEarned", ot: "otAmount", gross: "grossEarnings", epf: "epfDeduction", esi: "esiDeduction", totalDed: "totalDeduction", net: "netEarnings" };
 
 /** Which work order and month the Wage Entry screen shows. */
@@ -195,7 +197,7 @@ export function previewLine(wo, skill, typed, limit = null) {
   if (!rate) return { error: `No Per Day Wage for "${skill}" in this work order's Config` };
   try {
     const extras = {};
-    for (const k of ["ug", "bonus", "edlis", "pli", "otherEarn", "otherDed", "damage"]) extras[WAGE_INPUTS[k]] = typed[k] || 0;
+    for (const k of ["ug", "bonus", "edlis", "pli", "otherEarn", "cmps", "fine", "otherDed", "damage"]) extras[WAGE_INPUTS[k]] = typed[k] || 0;
     return {
       line: computeWageLine({
         daysWorked: typed.attDays, otHours: typed.otHrs || 0, otMinutes: typed.otMin || 0,
@@ -205,6 +207,25 @@ export function previewLine(wo, skill, typed, limit = null) {
   } catch (e) {
     return { error: e.message };
   }
+}
+
+// rates come back from the database as "18.00" / "2.50": shown as 18 / 2.5, so the drop-down matches 18%
+const tidyRates = (d) => ({ ...d, ...Object.fromEntries(["taxRate", "gstRate"].filter((k) => d[k] != null && d[k] !== "").map((k) => [k, String(Number(d[k]))])) });
+
+// ---------- statutory documents (lib/forms.js): Form D wage statement, FORM VIII-C wage slip ----------
+const statementOf = (ctx, sheet) => formD({ firm: ctx.d.firm, wo: ctx.d.workOrders.find((o) => o.id === sheet.workOrderId), sheet, workmen: ctx.d.workmen });
+
+/** The document open in the print view (ctx.local.print), ready to draw: { kind, title, doc } or null. */
+export function printDoc(ctx) {
+  const p = ctx.local.print;
+  if (!p) return null;
+  const sheet = ctx.d.sheets.find((s) => s.id === p.sheetId);
+  if (!sheet) return null;
+  if (p.kind === "formD") return { kind: "formD", title: `Wage Statement — ${sheet.woNo}, ${periodLabel(sheet.year, sheet.month)}`, doc: statementOf(ctx, sheet) };
+  const line = sheet.lines.find((l) => l.wuin === p.wuin);
+  if (!line) return null;
+  const workman = ctx.d.workmen.find((w) => w.id === line.workmanId);
+  return { kind: "slip", title: `Wage Slip — ${line.wuin}, ${periodLabel(sheet.year, sheet.month)}`, doc: wageSlip({ firm: ctx.d.firm, sheet, line, workman }) };
 }
 
 const workmenWord = (n) => `${n} workm${n === 1 ? "an" : "en"}`;
@@ -370,15 +391,19 @@ export const CONTROLLERS = {
     },
     options: (b, item, ctx) => (item === "wo" ? ctx.d.workOrders.filter((o) => o.status === "approved").map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` })) : null),
     filter: {
-      get: (b, item, ctx) => (ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "")),
-      set: (b, item, v, ctx) => ctx.setLocal({ wo: v, rowErrors: {} }),
+      get: (b, item, ctx) => (item === "showEngaged" ? !!ctx.local.showEngaged : ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "")),
+      set: (b, item, v, ctx) => ctx.setLocal(item === "showEngaged" ? { showEngaged: v, rowErrors: {} } : { wo: v, rowErrors: {} }),
     },
+    // the free pool: workmen not engaged on any work order. Engaged ones only when asked for (to move them), or the
+    // workman this screen was opened for from his page ("Engage on another work order").
     rows: (b, ctx) => {
-      const rows = ctx.d.workmen.filter((w) => w.state !== "moved");
-      // a workman opened from his page comes first
-      return ctx.params.wm ? [...rows].sort((a, b2) => (b2.id === Number(ctx.params.wm)) - (a.id === Number(ctx.params.wm))) : rows;
+      const opened = Number(ctx.params.wm) || null;
+      const rows = ctx.d.workmen.filter((w) => w.state === "inactive" || (w.state === "active" && (ctx.local.showEngaged || w.id === opened)));
+      return opened ? [...rows].sort((a, b2) => (b2.id === opened) - (a.id === opened)) : rows;
     },
-    empty: () => ({ text: "No workmen in this firm yet. Add them with New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }),
+    empty: (b, ctx) => (ctx.d.workmen.some((w) => w.state === "active")
+      ? { text: "Every workman is already engaged on a work order. To move one, tick \"Also show workmen engaged on other work orders\" above; or add a New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }
+      : { text: "No workmen in this firm yet. Add them with New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }),
     action: (b, item, ctx) => {
       if (item === "engage") return async () => {
         const wo = ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "");
@@ -551,15 +576,16 @@ export const CONTROLLERS = {
         await ctx.live.run("reopenWages", { sheetId: s.sheet.id });
         toast(ctx, `${periodLabel(s.year, s.month)} reopened. Correct the rows, Save, then Submit again.`);
       };
+      // Download Excel = the wage statement in the Form D layout (saved values), as a real .xlsx
       if (item === "excel") return () => {
-        const rows = wageRows(ctx).map((r) => ({ wuin: r.wuin, name: r.name, ...(r.saved ?? {}) }));
-        if (!rows.length) return info(ctx, "There are no rows to download for this month.");
-        downloadCsv(`wages-${s.wo.woNo}-${s.year}-${String(s.month).padStart(2, "0")}.csv`, csvColumns("wage_entry", "grid"), rows);
-        toast(ctx, `Wage sheet downloaded with the saved values${ctx.local.dirty ? " (unsaved changes are not included — press Save first)" : ""}.`);
+        if (!s.sheet?.lines.length) return info(ctx, "Nothing saved yet for this month. Save the wages first; the Excel file holds the saved values.");
+        const doc = statementOf(ctx, s.sheet);
+        downloadFile(`Wage-Statement-${s.wo.woNo}-${periodText(s.year, s.month)}.xlsx`, buildXlsx(formDSheet(doc)), XLSX_TYPE);
+        toast(ctx, `Wage statement (Form D) downloaded: ${workmenWord(doc.rows.length)}${ctx.local.dirty ? ". Unsaved changes are not included — press Save first" : ""}.`);
       };
       if (item === "statement") return () => {
-        if (!s.sheet?.lines.length) return info(ctx, "Nothing saved yet for this month. Save the wages first; the statement prints the saved values.");
-        window.print();
+        if (!s.sheet?.lines.length) return info(ctx, "Nothing saved yet for this month. Save the wages first; the statement shows the saved values.");
+        ctx.setLocal({ print: { kind: "formD", sheetId: s.sheet.id } });
       };
       return null;
     },
@@ -601,7 +627,7 @@ export const CONTROLLERS = {
       };
       if (item === "print") return () => {
         if (!ctx.params.sheet) return info(ctx, "Choose a month with View Slip first.");
-        window.print();
+        ctx.setLocal({ print: { kind: "slip", sheetId: Number(ctx.params.sheet), wuin: ctx.params.wuin } });
       };
       return null;
     },
@@ -651,7 +677,7 @@ export const CONTROLLERS = {
       const id = ctx.params.bill;
       if (id && ctx.d.bills.some((b) => b.id === Number(id))) {
         ctx.setLocal({ billId: Number(id) });
-        return { details: (await ctx.live.run("getBill", { billId: Number(id) }, { refresh: false })).details };
+        return { details: tidyRates((await ctx.live.run("getBill", { billId: Number(id) }, { refresh: false })).details) };
       }
       return { details: { wo: ctx.params.wo ? String(ctx.params.wo) : "", gstStatus: "Pending", epfStatus: "Pending", esicStatus: "Pending", approved: "No" } };
     },
@@ -662,7 +688,7 @@ export const CONTROLLERS = {
       // already in the form (e.g. just added): reloading it could overwrite what is being typed
       if (ctx.local.billId !== row.id) {
         const v = await ctx.live.run("getBill", { billId: row.id }, { refresh: false });
-        ctx.setValues({ details: v.details });
+        ctx.setValues({ details: tidyRates(v.details) });
         ctx.setLocal({ billId: row.id });
       }
       info(ctx, `Editing bill ${row.billNo}. Change the fields below and press Save Bill.`);

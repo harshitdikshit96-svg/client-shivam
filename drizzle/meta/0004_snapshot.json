@@ -1,0 +1,1989 @@
+{
+  "id": "34f098ae-7675-4d47-a586-e69d938f4c34",
+  "prevId": "4305e0fb-5f1c-4ac8-872e-6515f2c1d321",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.app_users": {
+      "name": "app_users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_login_at": {
+          "name": "last_login_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "app_users_username_unique": {
+          "name": "app_users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dispatch_register": {
+      "name": "dispatch_register",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "party_name_contract": {
+          "name": "party_name_contract",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bill_number": {
+          "name": "bill_number",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bill_date": {
+          "name": "bill_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taxable_amount": {
+          "name": "taxable_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_rate": {
+          "name": "tax_rate",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "tax_amount": {
+          "name": "tax_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "gst_rate": {
+          "name": "gst_rate",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "gst_amount": {
+          "name": "gst_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "received_amount": {
+          "name": "received_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_date": {
+          "name": "received_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deduction": {
+          "name": "deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "remark": {
+          "name": "remark",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gst_payment_status": {
+          "name": "gst_payment_status",
+          "type": "payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Pending'"
+        },
+        "epf_payment_status": {
+          "name": "epf_payment_status",
+          "type": "payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Pending'"
+        },
+        "esic_payment_status": {
+          "name": "esic_payment_status",
+          "type": "payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Pending'"
+        },
+        "approved": {
+          "name": "approved",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "approved_by": {
+          "name": "approved_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approval_date": {
+          "name": "approval_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bill_number_per_firm": {
+          "name": "bill_number_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "bill_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "dispatch_register_bill_date_idx": {
+          "name": "dispatch_register_bill_date_idx",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "bill_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "dispatch_register_firm_id_firms_id_fk": {
+          "name": "dispatch_register_firm_id_firms_id_fk",
+          "tableFrom": "dispatch_register",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "dispatch_register_work_order_id_work_orders_id_fk": {
+          "name": "dispatch_register_work_order_id_work_orders_id_fk",
+          "tableFrom": "dispatch_register",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "bill_amounts_non_negative": {
+          "name": "bill_amounts_non_negative",
+          "value": "\"dispatch_register\".\"taxable_amount\" >= 0 AND \"dispatch_register\".\"gst_amount\" >= 0 AND \"dispatch_register\".\"deduction\" >= 0"
+        },
+        "bill_tax_amounts_non_negative": {
+          "name": "bill_tax_amounts_non_negative",
+          "value": "\"dispatch_register\".\"tax_amount\" >= 0 AND \"dispatch_register\".\"total_amount\" >= 0"
+        },
+        "bill_rates_percent": {
+          "name": "bill_rates_percent",
+          "value": "\"dispatch_register\".\"tax_rate\" BETWEEN 0 AND 100 AND \"dispatch_register\".\"gst_rate\" BETWEEN 0 AND 100"
+        },
+        "received_date_with_amount": {
+          "name": "received_date_with_amount",
+          "value": "\"dispatch_register\".\"received_amount\" IS NULL OR \"dispatch_register\".\"received_date\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.engagements": {
+      "name": "engagements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workman_id": {
+          "name": "workman_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "engaged_from": {
+          "name": "engaged_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "engaged_to": {
+          "name": "engaged_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appointment_letter_path": {
+          "name": "appointment_letter_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "one_open_engagement_per_workman": {
+          "name": "one_open_engagement_per_workman",
+          "columns": [
+            {
+              "expression": "workman_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engagements\".\"engaged_to\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "engagements_work_order_idx": {
+          "name": "engagements_work_order_idx",
+          "columns": [
+            {
+              "expression": "work_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "engagement_workman_same_firm": {
+          "name": "engagement_workman_same_firm",
+          "tableFrom": "engagements",
+          "tableTo": "workmen",
+          "columnsFrom": [
+            "firm_id",
+            "workman_id"
+          ],
+          "columnsTo": [
+            "firm_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "engagement_work_order_same_firm": {
+          "name": "engagement_work_order_same_firm",
+          "tableFrom": "engagements",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "firm_id",
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "firm_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "engagement_dates_in_order": {
+          "name": "engagement_dates_in_order",
+          "value": "\"engagements\".\"engaged_to\" IS NULL OR \"engagements\".\"engaged_to\" >= \"engagements\".\"engaged_from\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.firms": {
+      "name": "firms",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuin": {
+          "name": "cuin",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_no": {
+          "name": "registration_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gstin": {
+          "name": "gstin",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pan": {
+          "name": "pan",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pf_registration_no": {
+          "name": "pf_registration_no",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esic_no": {
+          "name": "esic_no",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mobile": {
+          "name": "mobile",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pincode": {
+          "name": "pincode",
+          "type": "varchar(6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "firms_name_unique": {
+          "name": "firms_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        },
+        "firms_cuin_unique": {
+          "name": "firms_cuin_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "cuin"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.monthly_sheets": {
+      "name": "monthly_sheets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month": {
+          "name": "month",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "sheet_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deadline": {
+          "name": "deadline",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proof_of_wage_pf_path": {
+          "name": "proof_of_wage_pf_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "one_sheet_per_work_order_month": {
+          "name": "one_sheet_per_work_order_month",
+          "columns": [
+            {
+              "expression": "work_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "month",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "monthly_sheets_work_order_id_work_orders_id_fk": {
+          "name": "monthly_sheets_work_order_id_work_orders_id_fk",
+          "tableFrom": "monthly_sheets",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "month_1_to_12": {
+          "name": "month_1_to_12",
+          "value": "\"monthly_sheets\".\"month\" BETWEEN 1 AND 12"
+        },
+        "year_sane": {
+          "name": "year_sane",
+          "value": "\"monthly_sheets\".\"year\" BETWEEN 2020 AND 2100"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sessions_user_idx": {
+          "name": "sessions_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_app_users_id_fk": {
+          "name": "sessions_user_id_app_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "app_users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sessions_token_hash_unique": {
+          "name": "sessions_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.wage_lines": {
+      "name": "wage_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sheet_id": {
+          "name": "sheet_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "workman_id": {
+          "name": "workman_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "days_worked": {
+          "name": "days_worked",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ot_hours": {
+          "name": "ot_hours",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "ot_minutes": {
+          "name": "ot_minutes",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "ug_allowance": {
+          "name": "ug_allowance",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "bonus": {
+          "name": "bonus",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "edlis": {
+          "name": "edlis",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "pli": {
+          "name": "pli",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "other_earnings": {
+          "name": "other_earnings",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "other_deduction": {
+          "name": "other_deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "damage_recovery": {
+          "name": "damage_recovery",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "remarks": {
+          "name": "remarks",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skill_category": {
+          "name": "skill_category",
+          "type": "skill_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basic_rate": {
+          "name": "basic_rate",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vda_rate": {
+          "name": "vda_rate",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "epf_percent": {
+          "name": "epf_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "esi_percent": {
+          "name": "esi_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ot_multiplier": {
+          "name": "ot_multiplier",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basic_vda_earned": {
+          "name": "basic_vda_earned",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ot_amount": {
+          "name": "ot_amount",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "gross_earnings": {
+          "name": "gross_earnings",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "epf_deduction": {
+          "name": "epf_deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "esi_deduction": {
+          "name": "esi_deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_deduction": {
+          "name": "total_deduction",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "net_earnings": {
+          "name": "net_earnings",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculated_at": {
+          "name": "calculated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "one_wage_line_per_workman": {
+          "name": "one_wage_line_per_workman",
+          "columns": [
+            {
+              "expression": "sheet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "workman_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wage_lines_sheet_id_monthly_sheets_id_fk": {
+          "name": "wage_lines_sheet_id_monthly_sheets_id_fk",
+          "tableFrom": "wage_lines",
+          "tableTo": "monthly_sheets",
+          "columnsFrom": [
+            "sheet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "wage_lines_workman_id_workmen_id_fk": {
+          "name": "wage_lines_workman_id_workmen_id_fk",
+          "tableFrom": "wage_lines",
+          "tableTo": "workmen",
+          "columnsFrom": [
+            "workman_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "days_0_to_31": {
+          "name": "days_0_to_31",
+          "value": "\"wage_lines\".\"days_worked\" >= 0 AND \"wage_lines\".\"days_worked\" <= 31"
+        },
+        "ot_hours_non_negative": {
+          "name": "ot_hours_non_negative",
+          "value": "\"wage_lines\".\"ot_hours\" >= 0"
+        },
+        "ot_minutes_quarter_hours": {
+          "name": "ot_minutes_quarter_hours",
+          "value": "\"wage_lines\".\"ot_minutes\" IN (0, 15, 30, 45)"
+        },
+        "net_is_gross_minus_deductions": {
+          "name": "net_is_gross_minus_deductions",
+          "value": "\"wage_lines\".\"net_earnings\" = \"wage_lines\".\"gross_earnings\" - \"wage_lines\".\"total_deduction\""
+        },
+        "extras_non_negative": {
+          "name": "extras_non_negative",
+          "value": "\"wage_lines\".\"ug_allowance\" >= 0 AND \"wage_lines\".\"bonus\" >= 0 AND \"wage_lines\".\"edlis\" >= 0 AND \"wage_lines\".\"pli\" >= 0 AND \"wage_lines\".\"other_earnings\" >= 0 AND \"wage_lines\".\"other_deduction\" >= 0 AND \"wage_lines\".\"damage_recovery\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.work_order_config": {
+      "name": "work_order_config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "epf_percent": {
+          "name": "epf_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'12'"
+        },
+        "epf_wage_ceiling": {
+          "name": "epf_wage_ceiling",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esi_percent": {
+          "name": "esi_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.75'"
+        },
+        "esi_gross_ceiling": {
+          "name": "esi_gross_ceiling",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'21000'"
+        },
+        "ot_multiplier": {
+          "name": "ot_multiplier",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'2'"
+        },
+        "hours_per_day": {
+          "name": "hours_per_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 8
+        },
+        "deadline_day": {
+          "name": "deadline_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "work_order_config_work_order_id_work_orders_id_fk": {
+          "name": "work_order_config_work_order_id_work_orders_id_fk",
+          "tableFrom": "work_order_config",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "work_order_config_work_order_id_unique": {
+          "name": "work_order_config_work_order_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "work_order_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "config_percents_sane": {
+          "name": "config_percents_sane",
+          "value": "\"work_order_config\".\"epf_percent\" BETWEEN 0 AND 100 AND \"work_order_config\".\"esi_percent\" BETWEEN 0 AND 100"
+        },
+        "config_ot_sane": {
+          "name": "config_ot_sane",
+          "value": "\"work_order_config\".\"ot_multiplier\" >= 1 AND \"work_order_config\".\"hours_per_day\" BETWEEN 1 AND 24"
+        },
+        "config_deadline_day": {
+          "name": "config_deadline_day",
+          "value": "\"work_order_config\".\"deadline_day\" IS NULL OR \"work_order_config\".\"deadline_day\" BETWEEN 1 AND 31"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.work_order_rates": {
+      "name": "work_order_rates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "work_order_id": {
+          "name": "work_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "skill_category": {
+          "name": "skill_category",
+          "type": "skill_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "basic_daily": {
+          "name": "basic_daily",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vda_daily": {
+          "name": "vda_daily",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "one_rate_per_skill": {
+          "name": "one_rate_per_skill",
+          "columns": [
+            {
+              "expression": "work_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "skill_category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "work_order_rates_work_order_id_work_orders_id_fk": {
+          "name": "work_order_rates_work_order_id_work_orders_id_fk",
+          "tableFrom": "work_order_rates",
+          "tableTo": "work_orders",
+          "columnsFrom": [
+            "work_order_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rate_positive": {
+          "name": "rate_positive",
+          "value": "\"work_order_rates\".\"basic_daily\" > 0 AND \"work_order_rates\".\"vda_daily\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.work_orders": {
+      "name": "work_orders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wo_number": {
+          "name": "wo_number",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wouin": {
+          "name": "wouin",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "party_gst": {
+          "name": "party_gst",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name_of_work": {
+          "name": "name_of_work",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company": {
+          "name": "company",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area_unit": {
+          "name": "area_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "principal_employer_name": {
+          "name": "principal_employer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_employer_designation": {
+          "name": "principal_employer_designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_employer_address": {
+          "name": "principal_employer_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "principal_employer_contact": {
+          "name": "principal_employer_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district": {
+          "name": "district",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nature_of_work": {
+          "name": "nature_of_work",
+          "type": "nature_of_work",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_of_operation": {
+          "name": "area_of_operation",
+          "type": "area_of_operation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commencement_date": {
+          "name": "commencement_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completion_date": {
+          "name": "completion_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "engineer_in_charge": {
+          "name": "engineer_in_charge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_name": {
+          "name": "supervisor_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_phone": {
+          "name": "supervisor_phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_phone_alt": {
+          "name": "supervisor_phone_alt",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_email": {
+          "name": "supervisor_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_email_alt": {
+          "name": "supervisor_email_alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "labour_license_path": {
+          "name": "labour_license_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remarks": {
+          "name": "remarks",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "wo_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "wo_number_per_firm": {
+          "name": "wo_number_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "wo_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "work_orders_status_idx": {
+          "name": "work_orders_status_idx",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "work_orders_firm_id_firms_id_fk": {
+          "name": "work_orders_firm_id_firms_id_fk",
+          "tableFrom": "work_orders",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "work_orders_firm_id_id": {
+          "name": "work_orders_firm_id_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "firm_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "wo_dates_in_order": {
+          "name": "wo_dates_in_order",
+          "value": "\"work_orders\".\"completion_date\" >= \"work_orders\".\"commencement_date\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.workmen": {
+      "name": "workmen",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "firm_id": {
+          "name": "firm_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wuin": {
+          "name": "wuin",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aadhaar": {
+          "name": "aadhaar",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surname": {
+          "name": "surname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relative_name": {
+          "name": "relative_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_of_birth": {
+          "name": "date_of_birth",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nationality": {
+          "name": "nationality",
+          "type": "nationality",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Indian'"
+        },
+        "education_level": {
+          "name": "education_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_of_joining": {
+          "name": "date_of_joining",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "skill_category": {
+          "name": "skill_category",
+          "type": "skill_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employment_type": {
+          "name": "employment_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mobile": {
+          "name": "mobile",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pf_type": {
+          "name": "pf_type",
+          "type": "pf_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "uan_or_cmpf_no": {
+          "name": "uan_or_cmpf_no",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_insurance_no": {
+          "name": "group_insurance_no",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pan": {
+          "name": "pan",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esic_ip": {
+          "name": "esic_ip",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_account_no": {
+          "name": "bank_account_no",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_name": {
+          "name": "bank_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ifsc": {
+          "name": "ifsc",
+          "type": "varchar(11)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_of_exit": {
+          "name": "date_of_exit",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identification_mark": {
+          "name": "identification_mark",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_disabled": {
+          "name": "is_disabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "disability_details": {
+          "name": "disability_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "religion": {
+          "name": "religion",
+          "type": "religion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_ex_serviceman": {
+          "name": "is_ex_serviceman",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "accommodation": {
+          "name": "accommodation",
+          "type": "accommodation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wage_category": {
+          "name": "wage_category",
+          "type": "wage_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nominee_name": {
+          "name": "nominee_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nominee_relationship": {
+          "name": "nominee_relationship",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nominee_dob": {
+          "name": "nominee_dob",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nominee_aadhaar": {
+          "name": "nominee_aadhaar",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_name": {
+          "name": "emergency_contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_address": {
+          "name": "emergency_contact_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_phone": {
+          "name": "emergency_contact_phone",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "wuin_per_firm": {
+          "name": "wuin_per_firm",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "wuin",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "workmen_aadhaar_idx": {
+          "name": "workmen_aadhaar_idx",
+          "columns": [
+            {
+              "expression": "firm_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "aadhaar",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "workmen_firm_id_firms_id_fk": {
+          "name": "workmen_firm_id_firms_id_fk",
+          "tableFrom": "workmen",
+          "tableTo": "firms",
+          "columnsFrom": [
+            "firm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "workmen_firm_id_id": {
+          "name": "workmen_firm_id_id",
+          "nullsNotDistinct": false,
+          "columns": [
+            "firm_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "exit_after_joining": {
+          "name": "exit_after_joining",
+          "value": "\"workmen\".\"date_of_exit\" IS NULL OR \"workmen\".\"date_of_exit\" >= \"workmen\".\"date_of_joining\""
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.accommodation": {
+      "name": "accommodation",
+      "schema": "public",
+      "values": [
+        "Self",
+        "Company Quarter",
+        "Contractors' camp"
+      ]
+    },
+    "public.area_of_operation": {
+      "name": "area_of_operation",
+      "schema": "public",
+      "values": [
+        "Surface",
+        "Under ground"
+      ]
+    },
+    "public.gender": {
+      "name": "gender",
+      "schema": "public",
+      "values": [
+        "Male",
+        "Female",
+        "Others"
+      ]
+    },
+    "public.nationality": {
+      "name": "nationality",
+      "schema": "public",
+      "values": [
+        "Indian",
+        "Other"
+      ]
+    },
+    "public.nature_of_work": {
+      "name": "nature_of_work",
+      "schema": "public",
+      "values": [
+        "Coal Loading and Transportation",
+        "MDO",
+        "Mining Activities",
+        "Civil",
+        "E & M",
+        "Watch and Ward",
+        "Others"
+      ]
+    },
+    "public.payment_status": {
+      "name": "payment_status",
+      "schema": "public",
+      "values": [
+        "Pending",
+        "Paid",
+        "Partially Paid",
+        "Not Applicable"
+      ]
+    },
+    "public.pf_type": {
+      "name": "pf_type",
+      "schema": "public",
+      "values": [
+        "CMPF",
+        "EPF"
+      ]
+    },
+    "public.religion": {
+      "name": "religion",
+      "schema": "public",
+      "values": [
+        "Hinduism",
+        "Islam",
+        "Christianity",
+        "Sikhism",
+        "Buddhism",
+        "Jainism",
+        "Other"
+      ]
+    },
+    "public.sheet_status": {
+      "name": "sheet_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "submitted",
+        "approved"
+      ]
+    },
+    "public.skill_category": {
+      "name": "skill_category",
+      "schema": "public",
+      "values": [
+        "Highly Skilled",
+        "Skilled",
+        "Semi Skilled",
+        "Unskilled"
+      ]
+    },
+    "public.wage_category": {
+      "name": "wage_category",
+      "schema": "public",
+      "values": [
+        "HPC",
+        "Minimum Wages",
+        "DGR",
+        "Other"
+      ]
+    },
+    "public.wo_status": {
+      "name": "wo_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "approved",
+        "rejected",
+        "completed"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

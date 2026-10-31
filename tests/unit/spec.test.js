@@ -180,7 +180,7 @@ describe("CR-3: everything editable, every typed field validated", () => {
   });
   it("every typed field of every form has a known format (length + pattern)", () => {
     for (const [id, b] of forms) {
-      for (const it of b.items.filter((x) => !["select", "file", "button"].includes(x.input))) {
+      for (const it of b.items.filter((x) => !["select", "file", "button"].includes(x.input) && !x.calc)) {   // calculated fields are not typed
         expect(FORMATS[it.format], `${id} › ${b.title} › ${it.label} has no format`).toBeDefined();
       }
     }

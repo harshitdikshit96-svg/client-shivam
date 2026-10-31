@@ -442,7 +442,7 @@ describe("WAGES — days typed, everything else calculated", () => {
 
 // =====================================================================================================
 describe("DISPATCH REGISTER — bills linked to an order", () => {
-  const BILL = (wo, over = {}) => ({ details: { wo: wo ? String(wo) : "", partyName: "NEC", billNo: "B-1", billDate: "2026-09-01", taxable: "100000", gst: "18000", ...over } });
+  const BILL = (wo, over = {}) => ({ details: { wo: wo ? String(wo) : "", partyName: "NEC", billNo: "B-1", billDate: "2026-09-01", taxable: "100000", gstRate: "18", ...over } });
   it("BL-01 a bill is created, listed with its order number, then edited", async () => {
     const { f, wo } = await base();
     const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id) });

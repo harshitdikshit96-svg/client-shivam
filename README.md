@@ -8,7 +8,7 @@ uses an embedded PostgreSQL (PGlite) in `.data/`, so no database server is neede
 |---|---|
 | `README.md` | how to run it, how it works, how to change and upgrade it |
 | `docs/DEPLOY.md` | step-by-step production deployment (Vercel + Neon) |
-| `docs/CHANGES.md` | every change request since the client's spec v1 (CR-1 … CR-6) |
+| `docs/CHANGES.md` | every change request since the client's spec v1 (CR-1 … CR-9) |
 | `docs/TEST-PLAN.md` | test plan, results, security audit, defects and their fixes |
 | `docs/client-spec-v1.json` | the client's frozen spec v1 (12 Oct 2026); the tests compare the screens to it |
 
@@ -87,6 +87,7 @@ components/
   screens.js     per-screen behaviour (CONTROLLERS): what rows a table shows, what each button does
   Data.js        DataProvider: loads data, runs operations, toasts / errors / confirm dialogs, CSV download, date & money format
   ErrorBoundary.js   a screen that crashes shows a recovery panel instead of a blank page
+  Forms.js       the print view of Form D and FORM VIII-C (Print / Save as PDF prints only the document)
 lib/
   schema.js      THE SPEC: menu, screens, blocks, fields/columns, required marks, options, FIELD_FORMATS
   ops.js         every server operation (create/update/delete …), firm-scoped, with the integrity checks
@@ -94,6 +95,9 @@ lib/
   rules.js       business rules that can be switched on/off (RULES)
   validate.js    field formats (FORMATS): what may be typed, length, pattern, message
   districts.js   districts per State (suggestions for Work Location (District))
+  bill.js        Dispatch Register amounts: tax, GST and total from the rates (same formula on screen and server)
+  forms.js       statutory documents: Form D wage statement and FORM VIII-C wage slip (headings + values, Excel layout)
+  xlsx.js        minimal .xlsx writer (text cells keep bank / UAN digits; no dependency)
   wages.js, payroll.js   wage maths (paise arithmetic) and saving / recalculating a month
   session.js     the single login, sessions, wrong-password limit
   http.js        CSRF / content-type / body-size checks, client address, prototype gate
@@ -131,7 +135,7 @@ tests/, e2e/     see §7
 | `engagements` | workman ↔ work order over dates | same firm; one work order per workman per day |
 | `monthly_sheets` | one per work order per month | draft → submitted (locked) → approved; Reopen for Editing |
 | `wage_lines` | days / OT / extras + calculated wages + Config snapshot | net = gross − deductions |
-| `dispatch_register` | bills, receipts, GST / EPF / ESIC status | bill number unique within the firm |
+| `dispatch_register` | bills: taxable, tax rate + amount, GST rate + amount, total, receipts, GST / EPF / ESIC status | bill number unique within the firm; amounts calculated from the rates (`lib/bill.js`) |
 
 - **Keys:** every table has a generated `id`. Records point at each other by id only, so every typed value
   (Aadhaar, WUIN, WO number, firm name…) stays editable.
@@ -195,6 +199,9 @@ fails if any button on the new screen does nothing visible.
 
 **Relax or tighten a rule:** edit `RULES` in `lib/rules.js`. Tests in `tests/db/integrity.test.js` show how each rule behaves.
 
+**Change a statutory document** (Form D / wage slip): headings and values are in `lib/forms.js`. Each heading is
+copied from the client's sample, and `tests/unit/forms.test.js` checks it word for word, so change both together.
+
 **Change a format** (e.g. allow a 16-digit bank account): edit `FORMATS` in `lib/validate.js`. Browser and server both follow it.
 
 **Add or rename a district:** edit `lib/districts.js` (the State names must match `STATES` in `lib/schema.js`). Any name can
@@ -213,7 +220,7 @@ still be typed, so a missing district never blocks anyone.
   npm outdated
   npm install next@<version> react@<v> react-dom@<v>    # one group at a time
   npm audit --omit=dev                                  # production dependencies must stay at 0
-  npm test && npm run test:e2e                          # 343 + 29 must pass
+  npm test && npm run test:e2e                          # 377 + 29 must pass
   ```
 - `npm audit` (all dependencies) reports moderate esbuild advisories inside `drizzle-kit`. That's a development tool only, never deployed.
 - After upgrading Drizzle, run `npm run db:generate`. It should report **no changes**; if it writes a file, read it before committing.
@@ -247,7 +254,7 @@ Full steps in **`docs/DEPLOY.md`**. In short:
 ## 7. Tests
 | Command | What |
 |---|---|
-| `npm test` | all of the below except e2e (343 tests) |
+| `npm test` | all of the below except e2e (377 tests) |
 | `npm run test:unit` | wage maths, formats, districts, and **the screens vs the client's spec** |
 | `npm run test:db` | operations, integrity rules, sessions, schema, the full ERP CRUD plan, on in-memory PostgreSQL |
 | `npm run test:ui` | React screens in jsdom on the demo data. Includes **every button on every screen must do something**, screens vs raw SQL, error handling |

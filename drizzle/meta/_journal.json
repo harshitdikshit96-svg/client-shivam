@@ -29,6 +29,20 @@
       "when": 1793022422481,
       "tag": "0003_drop_workman_photo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793439687053,
+      "tag": "0004_bill_tax_rates",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793441643997,
+      "tag": "0005_wage_cmps_fine",
+      "breakpoints": true
     }
   ]
 }

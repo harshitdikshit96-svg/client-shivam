@@ -162,3 +162,31 @@ describe("names", () => {
     await refused(OPS.createWorkman(db, { firmId: f.id, values: WORKMAN("999988887777", { name: "रमेश 2" }) }));
   });
 });
+
+describe("Dispatch Register: tax rate and GST rate (CR-7)", () => {
+  const BILL = (wo, over = {}) => ({ details: { wo: String(wo), partyName: "NEC", billNo: "B1", billDate: "2026-09-01", taxable: "100000", ...over } });
+  it("the tax, GST and total amounts are calculated from the rates and stored", async () => {
+    const { f, wo } = await setup();
+    const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { taxRate: "5", gstRate: "18" }) });
+    expect(b).toMatchObject({ taxRate: "5.00", taxAmount: "5000.00", gstRate: "18.00", gstAmount: "18000.00", totalAmount: "123000.00" });
+    expect((await firmSnapshot(db, f.id)).bills[0]).toMatchObject({ taxable: 100000, tax: 5000, gst: 18000, total: 123000 });
+  });
+  it("an 'Other' rate is kept as typed; a typed amount is ignored (always calculated)", async () => {
+    const { f, wo } = await setup();
+    const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { taxRate: "2.5", gstRate: "12", gst: "1" }) });
+    expect(b).toMatchObject({ taxAmount: "2500.00", gstAmount: "12000.00", totalAmount: "114500.00" });
+    expect((await OPS.getBill(db, { firmId: f.id, billId: b.id })).details).toMatchObject({ taxRate: "2.50", gstRate: "12.00" });
+  });
+  it("blank rates mean 0%; a rate above 100 or with letters is refused on the field", async () => {
+    const { f, wo } = await setup();
+    expect(await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id) })).toMatchObject({ taxAmount: "0.00", gstAmount: "0.00", totalAmount: "100000.00" });
+    const e = await refused(OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { billNo: "B2", taxRate: "120", gstRate: "x" }) }));
+    expect(Object.keys(e.fields)).toEqual(expect.arrayContaining(["details.taxRate", "details.gstRate"]));
+  });
+  it("changing the taxable amount or a rate recalculates the stored amounts", async () => {
+    const { f, wo } = await setup();
+    const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { gstRate: "18" }) });
+    const c = await OPS.saveBill(db, { firmId: f.id, billId: b.id, values: BILL(wo.id, { taxable: "50000", gstRate: "5" }) });
+    expect(c).toMatchObject({ gstAmount: "2500.00", totalAmount: "52500.00" });
+  });
+});

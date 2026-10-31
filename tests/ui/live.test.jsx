@@ -14,6 +14,7 @@ import { createTestDb } from "../helpers/db";
 import { loadDemoData } from "@/lib/demo";
 import { firmSnapshot } from "@/lib/data";
 import { OPS, UserError, explainDbError } from "@/lib/ops";
+import { amount } from "@/lib/forms";
 
 let t, ids;
 beforeAll(async () => {
@@ -170,7 +171,7 @@ describe("every typed field has a length limit on screen", () => {
   for (const id of ["create_firm", "wo_new", "wm_edit", "dispatch_register"]) {
     it(id, async () => {
       const { container } = await renderLive(id, {});
-      const typed = [...container.querySelectorAll("input[type=text], textarea")];
+      const typed = [...container.querySelectorAll("input[type=text]:not(.calc), textarea")];   // calculated amounts are not typed
       expect(typed.length).toBeGreaterThan(0);
       for (const el of typed) expect(el.maxLength, el.getAttribute("aria-label")).toBeGreaterThan(0);
     });
@@ -382,5 +383,128 @@ describe("Engage: the date of joining", () => {
     const late = (await firmSnapshot(t.db, ids.firms[0].id)).workmen.find((w) => w.doj === "2026-10-01");
     const err = await OPS.engageWorkmen(t.db, { firmId: ids.firms[0].id, workOrderId: ids.orders[0].id, rows: [{ workmanId: late.id, from: "2026-09-15" }] }).catch((e) => e);
     expect(err.fields[`row.${late.id}`]).toMatch(/joined on 01\/10\/2026 \(Date of Joining\).*Pick a later date, or correct the Date of Joining/);
+  });
+});
+
+describe("Dispatch Register: Tax Rate and GST Rate drop-downs, total calculated (CR-7)", () => {
+  const amount = (label) => screen.getByLabelText(label).value;
+  it("picking 5% tax and 18% GST shows the amounts and the total straight away", async () => {
+    await renderLive("dispatch_register");
+    await userEvent.type(screen.getByLabelText("Taxable Amount"), "100000");
+    await userEvent.selectOptions(screen.getByLabelText("Tax Rate (%)"), "5");
+    await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "18");
+    expect([amount("Tax Amount"), amount("GST Amount"), amount("Total Amount")]).toEqual(["5,000.00", "18,000.00", "1,23,000.00"]);
+    expect(screen.getByLabelText("Total Amount")).toHaveAttribute("readonly");
+  });
+  it("'Other' opens a box for any rate, and the total follows it", async () => {
+    await renderLive("dispatch_register");
+    await userEvent.type(screen.getByLabelText("Taxable Amount"), "1000");
+    expect(screen.queryByLabelText("GST Rate (%) — other rate")).toBeNull();
+    await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "other");
+    await userEvent.type(screen.getByLabelText("GST Rate (%) — other rate"), "12.5");
+    expect(amount("GST Amount")).toBe("125.00");
+    expect(amount("Total Amount")).toBe("1,125.00");
+    await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "0");
+    expect(screen.queryByLabelText("GST Rate (%) — other rate")).toBeNull();
+    expect(amount("Total Amount")).toBe("1,000.00");
+  });
+  it("the list shows tax, GST and total; Edit on a bill with an unlisted rate opens it as Other", async () => {
+    await renderLive("dispatch_register");
+    const row = screen.getByText("DEMO-BILL-02").closest("tr");
+    expect(row).toHaveTextContent("52,000.00");   // taxable
+    expect(row).toHaveTextContent("1,040.00");    // 2% tax
+    expect(row).toHaveTextContent("9,360.00");    // 18% GST
+    expect(row).toHaveTextContent("62,400.00");   // total
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    await waitFor(() => expect(screen.getByLabelText("Tax Rate (%) — other rate")).toHaveValue("2"));
+    expect(screen.getByLabelText("GST Rate (%)")).toHaveValue("18");
+    expect(amount("Total Amount")).toBe("62,400.00");
+  });
+});
+
+describe("Engage: only free workmen are listed (CR-7)", () => {
+  it("workmen engaged on a work order are not in the list until 'Also show…' is ticked", async () => {
+    const { data } = await renderLive("wm_engage");
+    const engaged = data.workmen.filter((w) => w.state === "active");
+    const free = data.workmen.filter((w) => w.state === "inactive");
+    expect(engaged.length).toBeGreaterThan(0);
+    expect(free.length).toBeGreaterThan(0);
+    for (const w of engaged) expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
+    for (const w of free) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Also show workmen engaged on other work orders (to move them)"));
+    for (const w of engaged) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+  });
+  it("opened for one engaged workman (Engage on another work order), that workman is listed first", async () => {
+    const snap = await firmSnapshot(t.db, ids.firms[0].id);
+    const w = snap.workmen.find((x) => x.state === "active");
+    await renderLive("wm_engage", { wm: w.id });
+    const first = screen.getAllByRole("row")[1];
+    expect(first).toHaveTextContent(w.wuin);
+  });
+  it("when everyone is engaged, the empty list says how to move someone", async () => {
+    const empty = await createTestDb();
+    const f = await OPS.createFirm(empty.db, { values: { form: { name: "All Busy" } } });
+    const wo = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: {
+      form: { woNo: "B-1", workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end: "2027-03-31", company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
+      statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } } });
+    await OPS.setWorkOrderStatus(empty.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
+    const w = await OPS.createWorkman(empty.db, { firmId: f.id, values: { details: { aadhaar: "123412341234", name: "Ramesh", gender: "Male", relative: "Suresh", dob: "1990-01-01", nationality: "Indian", doj: "2026-06-01", designation: "LABOUR", skill: "Unskilled", pfType: "EPF", bankAc: "000111222333", presentAddr: "Ledo", pwd: "No", exServ: "No", accommodation: "Self" } } });
+    await OPS.engageWorkmen(empty.db, { firmId: f.id, workOrderId: wo.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
+    await renderLive("wm_engage", {}, { db: empty.db, firmId: f.id });
+    expect(screen.getByText(/Every workman is already engaged on a work order/)).toBeInTheDocument();
+    await empty.close();
+  });
+});
+
+describe("statutory documents: Form D wage statement and FORM VIII-C wage slip", () => {
+  const sheetOf = async () => (await firmSnapshot(t.db, ids.firms[0].id)).sheets.find((s) => s.id === ids.augustSheets[ids.orders[0].id].id);
+  it("View Wage Statement opens Form D with the headings of the format and the saved values under them", async () => {
+    await renderLive("wage_entry", { wo: ids.orders[0].id, y: 2026, m: 8 });
+    await userEvent.click(screen.getByRole("button", { name: "View Wage Statement" }));
+    const dlg = screen.getByRole("dialog", { name: /Wage Statement — DEMO-WO-001, August 2026/ });
+    expect(within(dlg).getByText("WAGE STATEMENT FOR THE MONTH OF AUGUST-2026")).toBeInTheDocument();
+    expect(within(dlg).getByText("Name of Owner/Contractor")).toBeInTheDocument();
+    expect(within(dlg).getByText("Name of Owner/Contractor").nextElementSibling).toHaveTextContent("Demo Supervisor");   // from the work order
+    const grid = dlg.querySelector(".formd-grid");
+    const heads = [...grid.querySelectorAll("thead th")].map((h) => h.textContent);
+    expect(heads).toHaveLength(25);
+    expect(heads.slice(0, 3)).toEqual(["Name", "WUIN", "Designation"]);
+    const sheet = await sheetOf();
+    const rows = [...grid.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent));
+    expect(rows).toHaveLength(sheet.lines.length);
+    for (const l of sheet.lines) {
+      const r = rows.find((x) => x[1] === l.wuin);
+      expect(r[heads.indexOf("Attd. Days")], l.wuin).toBe(amount(l.attDays));
+      expect(r[heads.indexOf("Gross Earnings")]).toBe(amount(l.gross));
+      expect(r[heads.indexOf("Net Earnings")]).toBe(amount(l.net));
+      expect(r[heads.indexOf("Bank A/C No")]).toMatch(/^00000000\d\d$/);
+      expect(r[heads.indexOf("EPF/CMPF Account Number")]).toMatch(/^1000000000\d\d$/);
+    }
+    await userEvent.click(within(dlg).getByRole("button", { name: "Print / Save as PDF" }));
+    expect(window.print).toHaveBeenCalled();
+    await userEvent.click(within(dlg).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("Download Excel saves the Form D statement as an .xlsx file", async () => {
+    await renderLive("wage_entry", { wo: ids.orders[0].id, y: 2026, m: 8 });
+    await userEvent.click(screen.getByRole("button", { name: "Download Excel" }));
+    const blob = URL.createObjectURL.mock.calls.at(-1)[0];
+    expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect(screen.getByRole("status")).toHaveTextContent(/Wage statement \(Form D\) downloaded/);
+  });
+  it("Print Wage Slip opens FORM VIII-C with the worker's values", async () => {
+    const sheet = await sheetOf();
+    const l = sheet.lines[0];
+    await renderLive("wage_slip", { wuin: l.wuin, sheet: sheet.id });
+    await userEvent.click(screen.getByRole("button", { name: "Print Wage Slip" }));
+    const dlg = screen.getByRole("dialog", { name: new RegExp(`Wage Slip — ${l.wuin}`) });
+    expect(within(dlg).getByText("FORM – VIII-C")).toBeInTheDocument();
+    expect(within(dlg).getByText("Address : Demo Address, Lucknow")).toBeInTheDocument();
+    const row = (label) => within(dlg).getByText(label).closest("tr");
+    expect(row("Gross wages payable")).toHaveTextContent(amount(l.gross));
+    expect(row("Net wages paid")).toHaveTextContent(amount(l.net));
+    expect(row("Total deductions")).toHaveTextContent(`a) PF : ${amount(l.epf)}`);
+    expect(row("UAN")).toHaveTextContent(/UANXXXXXXXX\d{4}$/);
+    expect(row("Bank Account Number")).toHaveTextContent(/\*{6}\d{4}/);
   });
 });

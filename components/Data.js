@@ -158,6 +158,17 @@ export function csvCell(v) {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** Save bytes (e.g. an .xlsx built by lib/xlsx.js) as a file. */
+export function downloadFile(filename, bytes, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes], { type }));
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 /** Download rows as a CSV file (opens in Excel). columns: [{ id, label }] */
 export function downloadCsv(filename, columns, rows) {
   const esc = csvCell;

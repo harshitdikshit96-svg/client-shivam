@@ -49,11 +49,11 @@ describe("Wage Entry: type days, everything calculates", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/daysWorked must be 0–31/);
   });
 
-  it("has no Fine or CMPS columns", () => {
+  it("has Fine and CMPS Deduction columns for the office to type (CR-9; CR-1 had removed them)", () => {
     setup();
     const header = screen.getByRole("table").querySelector("thead");
-    expect(within(header).queryByText("Fine")).toBeNull();
-    expect(within(header).queryByText("CMPS Deduction")).toBeNull();
+    expect(within(header).getByText("Fine")).toBeInTheDocument();
+    expect(within(header).getByText("CMPS Deduction")).toBeInTheDocument();
   });
 });
 

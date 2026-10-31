@@ -55,7 +55,7 @@ Never run `db:demo` or `db:reset` against it.
 
 ## 4. Release
 ```bash
-npm test && npm run test:e2e          # 343 + 29 must pass
+npm test && npm run test:e2e          # 377 + 29 must pass
 git push origin main                  # Vercel builds and deploys main to Production
 ```
 Then on the live site: log in, create a firm, a work order (approve it), a workman, engage, enter a month's wages,

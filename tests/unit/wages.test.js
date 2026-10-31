@@ -88,3 +88,14 @@ describe("rateInForce", () => {
     expect(periodStart(2026, 8)).toBe("2026-08-01");
   });
 });
+
+describe("CMPS Deduction and Fine (typed by the office, CR-9)", () => {
+  it("are deducted with the others: total = EPF + CMPS + ESI + Fine + Damage + Other", async () => {
+    const { computeWageLine } = await import("@/lib/wages");
+    const l = computeWageLine({ daysWorked: 26, rate: { basicDaily: 556 }, statutory: { epfPercent: 12, esiPercent: 0.75 }, extras: { cmpsDeduction: 40, fine: 25.5, damageRecovery: 5, otherDeduction: 10 } });
+    expect([l.cmpsDeduction, l.fine]).toEqual([40, 25.5]);
+    expect(l.totalDeduction).toBe(1735 + 40 + 108 + 25.5 + 5 + 10);
+    expect(l.netEarnings).toBe(14456 - l.totalDeduction);
+    expect(() => computeWageLine({ daysWorked: 1, rate: { basicDaily: 556 }, extras: { fine: -1 } })).toThrow(/fine cannot be negative/);
+  });
+});
