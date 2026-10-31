@@ -50,15 +50,20 @@ export function DataProvider({ children, api = httpApi, initialData = null, onLo
   const [busy, setBusy] = useState(false);
   const [period, setPeriod] = useState(null);   // { year, month } shared by the wage lists
   const firmRef = useRef(initialData?.firm?.id ?? null);
+  const latest = useRef(0);   // only the newest request may change the data (a slow answer for an earlier firm is dropped)
+  const [switching, setSwitching] = useState(null);   // { id, promise } while another firm's data loads
 
   const load = useCallback(async (id = firmRef.current) => {
+    const n = ++latest.current;
     try {
       const body = await api("GET", null, id);
+      if (n !== latest.current) return null;
       firmRef.current = body.firm?.id ?? null;
       setData(body);
       setError(null);
       return body;
     } catch (e) {
+      if (n !== latest.current) return null;
       if (e.loggedOut) onLoggedOut?.();
       else setError(e.message);
       return null;
@@ -67,10 +72,15 @@ export function DataProvider({ children, api = httpApi, initialData = null, onLo
 
   useEffect(() => { if (!initialData) load(readFirm()); }, [load, initialData]);
 
+  // Switching firm: the old firm's records must never show under the new firm. Until the new data arrives the page is
+  // replaced by a loading shimmer (<Suspense> in App.js waits on this promise); the drop-down shows the new firm at once.
   const setFirm = useCallback((id) => {
     try { localStorage.setItem(FIRM_KEY, String(id)); } catch { /* private mode */ }
     setNotice(null);
-    return load(id);
+    const promise = load(id);   // never rejects: errors go to the error bar
+    setSwitching({ id, promise });
+    promise.finally(() => setSwitching((s) => (s?.promise === promise ? null : s)));
+    return promise;
   }, [load]);
 
   /** Run an operation; refreshes the data afterwards. Throws ActionError for the screen to show. */
@@ -97,8 +107,8 @@ export function DataProvider({ children, api = httpApi, initialData = null, onLo
   const ask = useCallback((opts) => new Promise((resolve) => setDialog({ ...opts, resolve })), []);
 
   const value = {
-    data, error, busy, notice, notify, fail, run, reload: load, setFirm, ask,
-    firmId: data?.firm?.id ?? null, period, setPeriod,
+    data, error, busy, notice, notify, fail, run, reload: load, setFirm, ask, switching,
+    firmId: switching?.id ?? data?.firm?.id ?? null, period, setPeriod,
   };
   return (
     <DataCtx.Provider value={value}>
@@ -146,18 +156,6 @@ export const fmtMoney = (v) => (v == null || v === "" ? "" : Number(v).toLocaleS
 export const todayIso = () => new Date().toISOString().slice(0, 10);
 const lastDay = (y, m) => new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 const firstDay = (y, m) => `${y}-${String(m).padStart(2, "0")}-01`;
-/** Was the engagement running at any point in the month? */
-export const engagedInMonth = (e, y, m) => e.from <= lastDay(y, m) && (!e.to || e.to >= firstDay(y, m));
-/** Does the work order run in the month? */
-export const orderInMonth = (o, y, m) => o.start <= lastDay(y, m) && o.end >= firstDay(y, m);
-
-/** One CSV cell. A value starting with = + - @ (or tab / CR) would run as a formula in Excel: it is kept as text. */
-export function csvCell(v) {
-  let s = v == null ? "" : String(v);
-  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`;
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /** Save bytes (e.g. an .xlsx built by lib/xlsx.js) as a file. */
 export function downloadFile(filename, bytes, type) {
   const a = document.createElement("a");
@@ -169,16 +167,8 @@ export function downloadFile(filename, bytes, type) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-/** Download rows as a CSV file (opens in Excel). columns: [{ id, label }] */
-export function downloadCsv(filename, columns, rows) {
-  const esc = csvCell;
-  const text = [columns.map((c) => esc(c.label)).join(","), ...rows.map((r) => columns.map((c) => esc(r[c.id])).join(","))].join("\r\n");
-  const blob = new Blob(["﻿" + text], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
+/** Was the engagement running at any point in the month? */
+export const engagedInMonth = (e, y, m) => e.from <= lastDay(y, m) && (!e.to || e.to >= firstDay(y, m));
+/** Does the work order run in the month? */
+export const orderInMonth = (o, y, m) => o.start <= lastDay(y, m) && o.end >= firstDay(y, m);
+

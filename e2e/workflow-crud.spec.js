@@ -274,3 +274,38 @@ test("UI-11 Switching to firm B shows none of firm A's records", async ({ page }
   await go(page, "s=dispatch_register");
   await expect(main(page)).not.toContainText("WF-B-1");
 });
+
+test("UI-12 Switching firm on a slow connection: a loading shimmer, never the old firm's workmen", async ({ page }) => {
+  await open(page, FIRM_A, "s=wm_active");
+  await expect(main(page)).toContainText("Kishan");
+  const b = (await data(page, FIRM_B)).firm.id;
+  // hold firm B's data for a moment, as a slow network would
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route(`**/api/data?firm=${b}`, async (route) => { await held; await route.continue(); });
+  await page.getByLabel("Select firm").selectOption({ label: FIRM_B });
+  await expect(page.getByRole("status", { name: "Loading the selected firm" })).toBeVisible();
+  await expect(main(page)).not.toContainText("Kishan");                              // firm A's workman is gone at once
+  await expect(page.getByLabel("Select firm").locator("option:checked")).toHaveText(FIRM_B);
+  release();
+  await expect(page.getByRole("status", { name: "Loading the selected firm" })).toBeHidden();
+  await expect(main(page)).not.toContainText("Kishan");
+  await page.unroute(`**/api/data?firm=${b}`);
+});
+
+test("UI-13 Every Excel download is a real .xlsx (Form D on Wage Entry and Engage, FORM A register)", async ({ page }) => {
+  await open(page, FIRM_A);
+  const d = await data(page, FIRM_A);
+  const wo = d.workOrders.find((o) => o.woNo === "WF-WO-2");
+  const saved = async (button) => {
+    const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: button, exact: true }).click()]);
+    const bytes = await (await import("node:fs/promises")).readFile(await file.path());
+    expect(bytes.subarray(0, 2).toString(), file.suggestedFilename()).toBe("PK");              // a zip = .xlsx, not text
+    return file.suggestedFilename();
+  };
+  await go(page, `s=wage_entry&wo=${wo.id}&y=2026&m=9`);
+  expect(await saved("Download Excel")).toBe("Wage-Statement-WF-WO-2-September-2026.xlsx");
+  await go(page, `s=wm_engage&wo=${wo.id}`);
+  expect(await saved("Download Excel")).toBe("Wage-Statement-WF-WO-2-September-2026.xlsx");
+  expect(await saved("FORM A")).toMatch(/^FORM-A-Register-of-Workmen-.*\.xlsx$/);
+});

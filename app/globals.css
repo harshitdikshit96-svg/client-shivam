@@ -420,3 +420,13 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
   .formd-grid thead { display: table-header-group; }   /* column headings repeat on every page */
   .formd-grid tr { break-inside: avoid; }
 }
+
+/* ---------- loading shimmer (firm switch) ---------- */
+.shimmer { display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
+.sh { border-radius: 8px; background: linear-gradient(90deg, #eceff3 0%, #f6f7f9 40%, #eceff3 80%); background-size: 200% 100%; animation: sh-move 1.2s ease-in-out infinite; }
+.sh-title { width: 38%; height: 30px; }
+.sh-bar { height: 64px; }
+.sh-row { height: 40px; }
+@keyframes sh-move { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .sh { animation: none; } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

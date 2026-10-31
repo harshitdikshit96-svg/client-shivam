@@ -53,7 +53,7 @@ beforeEach(() => {
   globalThis.URL.createObjectURL = vi.fn(() => "blob:x");
   globalThis.URL.revokeObjectURL = vi.fn();
   window.print = vi.fn();
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});   // CSV downloads
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});   // file downloads
   HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
@@ -77,7 +77,10 @@ describe("every button on every screen does something", () => {
   // the cases need ids from the database, so they are expanded inside the test
   it("no click is silent, and none falls back to 'not available'", async () => {
     const silent = [];
+    const crashed = [];
+    const notXlsx = [];
     let clicked = 0;
+    const consoleError = vi.spyOn(console, "error");
     for (const [id, params] of cases()) {
       const first = await renderLive(id, params);
       const count = within(first.container).queryAllByRole("button").length;
@@ -99,11 +102,19 @@ describe("every button on every screen does something", () => {
           ok = true;
         } catch { /* recorded below */ }
         if (!ok) silent.push(`${id} ${JSON.stringify(params)} › "${name}"`);
+        // a crash in the button's code is not an answer, even though it shows a message
+        if (consoleError.mock.calls.some((c) => c[0] === "[action failed]")) crashed.push(`${id} ${JSON.stringify(params)} › "${name}": ${consoleError.mock.calls.find((c) => c[0] === "[action failed]")[1]?.message}`);
+        consoleError.mockClear();
+        // every download is a real Excel file, never a CSV
+        for (const [blob] of URL.createObjectURL.mock.calls) if (blob?.type !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") notXlsx.push(`${id} › "${name}": ${blob?.type}`);
+        URL.createObjectURL.mockClear();
         if (screen.queryByText("This action is not available yet.")) silent.push(`${id} › "${name}" is not wired`);
         cleanup();
       }
     }
     expect(silent).toEqual([]);
+    expect(crashed).toEqual([]);
+    expect(notXlsx).toEqual([]);
     expect(clicked).toBeGreaterThan(200);   // the test really went through the buttons
   }, 240000);
 });
@@ -540,5 +551,48 @@ describe("statutory documents: Form D wage statement and FORM VIII-C wage slip",
     expect(row("Total deductions")).toHaveTextContent(`a) PF : ${amount(l.epf)}`);
     expect(row("UAN")).toHaveTextContent(/UANXXXXXXXX\d{4}$/);
     expect(row("Bank Account Number")).toHaveTextContent(/\*{6}\d{4}/);
+  });
+});
+
+describe("Engage Workmen downloads are real Excel files", () => {
+  const unzipSheet = async (blob) => {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const text = new TextDecoder().decode(bytes);
+    return text.slice(text.indexOf("<worksheet"), text.indexOf("</worksheet>") + 12);
+  };
+  it("Download Excel gives the Form D wage statement (.xlsx) of the selected work order, latest saved month", async () => {
+    const { data } = await renderLive("wm_engage", { wo: ids.orders[0].id });
+    await userEvent.click(screen.getByRole("button", { name: "Download Excel" }));
+    const blob = URL.createObjectURL.mock.calls.at(-1)[0];
+    expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const latest = data.sheets.filter((s) => s.workOrderId === ids.orders[0].id && s.lines.length).sort((a, b) => b.year - a.year || b.month - a.month)[0];
+    const xml = await unzipSheet(blob);
+    expect(xml).toContain(`WAGE STATEMENT FOR THE MONTH OF ${["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"][latest.month - 1]}-${latest.year}`);
+    for (const h of ["Name of Firm/Establishment", "Work Order Reference No", "Attd. Days", "EPF/CMPF Deduction", "CMPS Deduction", "Fine", "Bank A/C No", "EPF/CMPF Account Number"]) expect(xml, h).toContain(`>${h}</t>`);
+    expect(screen.getByRole("status")).toHaveTextContent(/Wage statement \(Form D\) of DEMO-WO-001/);
+  });
+  it("with no saved wages it says so (and offers Wage Entry) instead of downloading", async () => {
+    const empty = await createTestDb();
+    const f = await OPS.createFirm(empty.db, { values: { form: { name: "No Wages" } } });
+    const wo = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: {
+      form: { woNo: "NW-1", workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end: "2027-03-31", company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
+      statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } } });
+    await OPS.setWorkOrderStatus(empty.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
+    await renderLive("wm_engage", {}, { db: empty.db, firmId: f.id });
+    URL.createObjectURL.mockClear();
+    await userEvent.click(screen.getByRole("button", { name: "Download Excel" }));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("No wages are saved for NW-1 yet");
+    expect(screen.getByRole("button", { name: "Wage Entry" })).toBeInTheDocument();
+    await empty.close();
+  });
+  it("FORM A is a real .xlsx register of workmen", async () => {
+    const { data } = await renderLive("wm_engage");
+    await userEvent.click(screen.getByRole("button", { name: "FORM A" }));
+    const blob = URL.createObjectURL.mock.calls.at(-1)[0];
+    expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const xml = await unzipSheet(blob);
+    expect(xml).toContain("FORM A — Register of Workmen");
+    for (const w of data.workmen) expect(xml, w.wuin).toContain(`>${w.wuin}</t>`);
   });
 });

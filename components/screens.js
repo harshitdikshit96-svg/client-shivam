@@ -18,7 +18,7 @@
 //   action(block, item, ctx)         what a button under the screen does
 import { computeWageLine } from "@/lib/wages";
 import { WAGE_DEFAULTS, SCREEN_BY_ID } from "@/lib/schema";
-import { MONTHS, periodLabel, fmtDate, fmtMoney, todayIso, engagedInMonth, orderInMonth, downloadCsv, downloadFile } from "./Data";
+import { MONTHS, periodLabel, fmtDate, fmtMoney, todayIso, engagedInMonth, orderInMonth, downloadFile } from "./Data";
 import { formD, formDSheet, wageSlip, periodText } from "@/lib/forms";
 import { buildXlsx, XLSX_TYPE } from "@/lib/xlsx";
 
@@ -115,7 +115,6 @@ const endEngagement = async (ctx, e) => {
 };
 
 const sheetRow = (s) => ({ ...s, period: periodLabel(s.year, s.month), wageStatus: WAGE_STATUS[s.status], net: s.net, gross: s.gross, totalDed: s.totalDed });
-const csvColumns = (screenId, blockId) => SCREEN_BY_ID[screenId].blocks.find((b) => b.id === blockId).items.filter((i) => i.kind !== "action" && i.id !== "select" && i.id !== "newFrom");
 
 // ---------- wage grid ----------
 export const WAGE_INPUTS = { attDays: "daysWorked", otHrs: "otHours", otMin: "otMinutes", ug: "ugAllowance", bonus: "bonus", edlis: "edlis", pli: "pli", otherEarn: "otherEarnings", cmps: "cmpsDeduction", fine: "fine", otherDed: "otherDeduction", damage: "damageRecovery" };
@@ -214,6 +213,23 @@ const tidyRates = (d) => ({ ...d, ...Object.fromEntries(["taxRate", "gstRate"].f
 
 // ---------- statutory documents (lib/forms.js): Form D wage statement, FORM VIII-C wage slip ----------
 const statementOf = (ctx, sheet) => formD({ firm: ctx.d.firm, wo: ctx.d.workOrders.find((o) => o.id === sheet.workOrderId), sheet, workmen: ctx.d.workmen });
+
+/** FORM A as an Excel sheet: title, firm, headings, one row per workman (all text, dates as dd/mm/yyyy). */
+function registerSheet(firm, cols, workmen) {
+  const last = String.fromCharCode(64 + cols.length);
+  return {
+    name: "FORM A",
+    rows: [
+      [{ v: "FORM A — Register of Workmen", s: "title" }],
+      [{ v: `Name of Firm/Establishment: ${firm?.name ?? ""}`, s: "label" }],
+      [],
+      cols.map((c) => ({ v: c.label, s: "head" })),
+      ...workmen.map((w) => cols.map((c) => ({ v: w[c.id] == null ? "" : String(fmtDate(w[c.id])), s: "cell" }))),
+    ],
+    merges: [`A1:${last}1`, `A2:${last}2`],
+    widths: cols.map((c) => (c.id === "fullName" ? 24 : c.id === "engagedIn" ? 22 : 14)),
+  };
+}
 
 /** The document open in the print view (ctx.local.print), ready to draw: { kind, title, doc } or null. */
 export function printDoc(ctx) {
@@ -434,12 +450,21 @@ export const CONTROLLERS = {
         const cols = [{ id: "wuin", label: "WUIN" }, { id: "fullName", label: "Name" }, { id: "gender", label: "Gender" }, { id: "dob", label: "Date of Birth" },
           { id: "skill", label: "Skill Category" }, { id: "designation", label: "Designation" }, { id: "doj", label: "Date of Joining" },
           { id: "engagedIn", label: "Engaged in (Work Order)" }, { id: "engagedFrom", label: "Engaged From" }, { id: "status", label: "Status" }, { id: "exitDate", label: "Date of Exit" }];
-        downloadCsv(`FORM-A-register-${ctx.d.firm.name}.csv`, cols, ctx.d.workmen);
-        toast(ctx, `FORM A (register of workmen) downloaded: ${ctx.d.workmen.length} workmen.`);
+        downloadFile(`FORM-A-Register-of-Workmen-${ctx.d.firm.name}.xlsx`, buildXlsx(registerSheet(ctx.d.firm, cols, ctx.d.workmen)), XLSX_TYPE);
+        toast(ctx, `FORM A (register of workmen) downloaded: ${workmenWord(ctx.d.workmen.length)}.`);
       };
+      // Download Excel = the Form D wage statement (.xlsx) of the selected work order, for its latest month with saved wages
       if (item === "excel") return () => {
-        downloadCsv(`workmen-${ctx.d.firm.name}.csv`, csvColumns("wm_engage", "list"), ctx.d.workmen.filter((w) => w.state !== "moved"));
-        toast(ctx, "Workmen list downloaded (opens in Excel).");
+        const wo = ctx.d.workOrders.find((o) => o.id === engageWoId(ctx));
+        if (!wo) return info(ctx, "Select a work order first.");
+        const sheet = ctx.d.sheets.filter((s) => s.workOrderId === wo.id && s.lines.length).sort((a, b) => b.year - a.year || b.month - a.month)[0];
+        if (!sheet) {
+          return ctx.live.notify("info", `No wages are saved for ${wo.woNo} yet, so there is no wage statement to download. Enter the month's days on Wage Entry first.`,
+            { fix: { label: "Wage Entry", to: "wage_entry", params: { wo: wo.id } } });
+        }
+        const doc = statementOf(ctx, sheet);
+        downloadFile(`Wage-Statement-${wo.woNo}-${periodText(sheet.year, sheet.month)}.xlsx`, buildXlsx(formDSheet(doc)), XLSX_TYPE);
+        toast(ctx, `Wage statement (Form D) of ${wo.woNo} for ${periodLabel(sheet.year, sheet.month)} downloaded: ${workmenWord(doc.rows.length)}. Other months: Wage Entry → Download Excel.`);
       };
       return null;
     },

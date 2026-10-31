@@ -128,3 +128,54 @@ describe("the server has a problem before login", () => {
     expect(await screen.findByText("The server had a problem (500). Please try again in a minute.")).toBeInTheDocument();
   });
 });
+
+describe("switching firm (top bar)", () => {
+  // hold back the answers for chosen firms, so the moment between choosing and receiving can be looked at
+  const gate = () => {
+    const held = new Map();
+    const real = global.fetch;
+    global.fetch = vi.fn(async (url, opts) => {
+      const firm = Number(new URL(url, "http://x").searchParams.get("firm"));
+      if (url.startsWith("/api/data") && held.has(firm)) await held.get(firm).promise;
+      return real(url, opts);
+    });
+    return {
+      hold: (id) => { let release; const promise = new Promise((r) => { release = r; }); held.set(id, { promise, release }); },
+      release: (id) => held.get(id).release(),
+    };
+  };
+  const firmsInOrder = async () => (await firmSnapshot(t.db, null)).firms;
+  beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });   // start on the default (first) firm
+
+  it("the old firm's records never show under the new firm: a loading shimmer shows until the new firm's data arrives", async () => {
+    const [first, second] = await firmsInOrder();
+    render(<App />);
+    await logIn();
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(first.cuin));
+    const g = gate();
+    g.hold(second.id);
+    await userEvent.selectOptions(screen.getByLabelText("Select firm"), String(second.id));
+    expect(screen.getByLabelText("Select firm")).toHaveValue(String(second.id));          // the choice shows at once
+    expect(await screen.findByRole("status", { name: "Loading the selected firm" })).toBeInTheDocument();
+    expect(screen.queryByText(first.cuin, { exact: false })).toBeNull();                  // nothing of the old firm
+    g.release(second.id);
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(second.cuin));
+    expect(screen.queryByRole("status", { name: "Loading the selected firm" })).toBeNull();
+  });
+
+  it("a slow answer for an earlier choice cannot overwrite a later one", async () => {
+    const [first, second] = await firmsInOrder();
+    render(<App />);
+    await logIn();
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(first.cuin));
+    const g = gate();
+    g.hold(second.id);
+    await userEvent.selectOptions(screen.getByLabelText("Select firm"), String(second.id));   // slow
+    await userEvent.selectOptions(screen.getByLabelText("Select firm"), String(first.id));    // then back, fast
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(first.cuin));
+    g.release(second.id);                                                                      // the late answer arrives
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(first.cuin);
+    expect(screen.getByLabelText("Select firm")).toHaveValue(String(first.id));
+  });
+});

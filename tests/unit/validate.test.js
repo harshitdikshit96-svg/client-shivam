@@ -59,17 +59,12 @@ describe("on save", () => {
   it("blank is fine here (required is checked separately)", () => ok("aadhaar", ""));
 });
 
-describe("CSV downloads (Download Excel / FORM A)", async () => {
-  const { csvCell } = await import("@/components/Data");
-  it("a value that Excel would run as a formula is kept as text", () => {
-    expect(csvCell("=HYPERLINK(\"http://x\")")).toBe("\"'=HYPERLINK(\"\"http://x\"\")\"");
-    expect(csvCell("+91 98765")).toBe("'+91 98765");
-    expect(csvCell("@SUM(A1)")).toBe("'@SUM(A1)");
-  });
-  it("numbers (also negative) and plain text are unchanged; commas and quotes are quoted", () => {
-    expect(csvCell("-250.50")).toBe("-250.50");
-    expect(csvCell(12613)).toBe("12613");
-    expect(csvCell("Ramesh, Kumar")).toBe("\"Ramesh, Kumar\"");
-    expect(csvCell(null)).toBe("");
+describe("Excel downloads (.xlsx): typed text can never run as a formula", async () => {
+  const { buildXlsx } = await import("@/lib/xlsx");
+  it("a value like =HYPERLINK(…) is stored as plain text, not a formula", () => {
+    const bytes = buildXlsx({ rows: [["=HYPERLINK(\"http://x\")", "+91 98765", "@SUM(A1)"]] });
+    const xml = new TextDecoder().decode(bytes);
+    expect(xml).not.toContain("<f>");
+    expect(xml).toContain('t="inlineStr"><is><t xml:space="preserve">=HYPERLINK(&quot;http://x&quot;)</t>');
   });
 });

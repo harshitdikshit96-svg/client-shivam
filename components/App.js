@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense, use } from "react";
 import { CustProvider, Toolbar, useCust } from "./Cust";
 import Sidebar from "./Sidebar";
 import PageView from "./PageView";
@@ -85,6 +85,24 @@ function Session() {
   );
 }
 
+// While another firm's data loads: suspends on the request, so <Suspense> shows the shimmer instead of the old firm.
+function AwaitFirm({ promise }) {
+  use(promise);
+  return <PageShimmer />;
+}
+
+/** Loading placeholder in the shape of a page: title, filter bar, table rows. */
+export function PageShimmer() {
+  return (
+    <div className="shimmer" role="status" aria-live="polite" aria-label="Loading the selected firm">
+      <div className="sh sh-title" />
+      <div className="sh sh-bar" />
+      {[0, 1, 2, 3, 4].map((i) => <div key={i} className="sh sh-row" />)}
+      <span className="visually-hidden">Loading the selected firm…</span>
+    </div>
+  );
+}
+
 function Shell({ onLogout, username }) {
   const c = useCust();
   const live = useData();
@@ -167,9 +185,16 @@ function Shell({ onLogout, username }) {
       <div className="body">
         <Sidebar screen={loc.screen} go={go} />
         <main className="main">
-          <ErrorBoundary key={`${loc.screen}|${JSON.stringify(loc.params)}`} onHome={() => go("home")}>
-            <PageView key={`${loc.screen}|${JSON.stringify(loc.params)}|${live?.firmId ?? ""}`} screen={screen} go={go} params={loc.params} />
-          </ErrorBoundary>
+          {/* a fresh boundary per switch: the old firm's page is removed, not just hidden behind the shimmer */}
+          <Suspense key={live?.switching ? `switching-${live.switching.id}` : "page"} fallback={<PageShimmer />}>
+            {live?.switching ? (
+              <AwaitFirm promise={live.switching.promise} />
+            ) : (
+              <ErrorBoundary key={`${loc.screen}|${JSON.stringify(loc.params)}`} onHome={() => go("home")}>
+                <PageView key={`${loc.screen}|${JSON.stringify(loc.params)}|${live?.firmId ?? ""}`} screen={screen} go={go} params={loc.params} />
+              </ErrorBoundary>
+            )}
+          </Suspense>
         </main>
       </div>
     </div>

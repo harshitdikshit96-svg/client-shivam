@@ -8,7 +8,7 @@ uses an embedded PostgreSQL (PGlite) in `.data/`, so no database server is neede
 |---|---|
 | `README.md` | how to run it, how it works, how to change and upgrade it |
 | `docs/DEPLOY.md` | step-by-step production deployment (Vercel + Neon) |
-| `docs/CHANGES.md` | every change request since the client's spec v1 (CR-1 … CR-9) |
+| `docs/CHANGES.md` | every change request since the client's spec v1 (CR-1 … CR-10) |
 | `docs/TEST-PLAN.md` | test plan, results, security audit, defects and their fixes |
 | `docs/client-spec-v1.json` | the client's frozen spec v1 (12 Oct 2026); the tests compare the screens to it |
 
@@ -85,7 +85,7 @@ components/
   Sidebar.js     the menu (from lib/schema.js MENU)
   PageView.js    renders any screen from its spec: forms, tables, wage grid, dialogs, field checks, Combo drop-down
   screens.js     per-screen behaviour (CONTROLLERS): what rows a table shows, what each button does
-  Data.js        DataProvider: loads data, runs operations, toasts / errors / confirm dialogs, CSV download, date & money format
+  Data.js        DataProvider: loads data, runs operations, toasts / errors / confirm dialogs, file download, date & money format
   ErrorBoundary.js   a screen that crashes shows a recovery panel instead of a blank page
   Forms.js       the print view of Form D and FORM VIII-C (Print / Save as PDF prints only the document)
 lib/
@@ -177,7 +177,8 @@ Verified against the client's August 2026 CLIP sheet: 26 days × ₹556 → gros
   (`next.config.mjs`). No `X-Powered-By`.
 - **Requests:** CSRF check (same Origin + JSON body) and a 512 KB body limit (`lib/http.js`). Only names in `OPS` can be
   called (`Object.hasOwn`).
-- **Downloads:** CSV / Excel cells starting with `= + - @` are kept as text (`csvCell`), so they can't run as formulas.
+- **Downloads:** every download is a real `.xlsx` (`lib/xlsx.js`); cells are written as text or numbers, never formulas,
+  so a typed `=…` can't run in Excel. There are no CSV downloads.
 - **Audit:** the security audit and its results are in `docs/TEST-PLAN.md` §9.
 
 ---
@@ -220,7 +221,7 @@ still be typed, so a missing district never blocks anyone.
   npm outdated
   npm install next@<version> react@<v> react-dom@<v>    # one group at a time
   npm audit --omit=dev                                  # production dependencies must stay at 0
-  npm test && npm run test:e2e                          # 377 + 29 must pass
+  npm test && npm run test:e2e                          # 383 + 31 must pass
   ```
 - `npm audit` (all dependencies) reports moderate esbuild advisories inside `drizzle-kit`. That's a development tool only, never deployed.
 - After upgrading Drizzle, run `npm run db:generate`. It should report **no changes**; if it writes a file, read it before committing.
@@ -254,11 +255,11 @@ Full steps in **`docs/DEPLOY.md`**. In short:
 ## 7. Tests
 | Command | What |
 |---|---|
-| `npm test` | all of the below except e2e (377 tests) |
+| `npm test` | all of the below except e2e (383 tests) |
 | `npm run test:unit` | wage maths, formats, districts, and **the screens vs the client's spec** |
 | `npm run test:db` | operations, integrity rules, sessions, schema, the full ERP CRUD plan, on in-memory PostgreSQL |
 | `npm run test:ui` | React screens in jsdom on the demo data. Includes **every button on every screen must do something**, screens vs raw SQL, error handling |
-| `npm run test:e2e` | Playwright + Chromium against a production build on its own empty database (`.data/e2e`, `.next-e2e`): the full workflow, the HTTP API, security checks (29 tests). First time: `npx playwright install chromium` |
+| `npm run test:e2e` | Playwright + Chromium against a production build on its own empty database (`.data/e2e`, `.next-e2e`): the full workflow, the HTTP API, security checks, firm switch, Excel files (31 tests). First time: `npx playwright install chromium` |
 | `npm run test:coverage` | coverage report in `coverage/` |
 
 Helpers: `tests/helpers/db.js` (fresh migrated database per file), `tests/helpers/factories.js`. The test plan and results are in `docs/TEST-PLAN.md`.
@@ -278,6 +279,7 @@ Helpers: `tests/helpers/db.js` (fresh migrated database per file), `tests/helper
 | Every action says "did not come from the portal's own pages" | a proxy rewrites the host → set `TRUST_PROXY=true` |
 | Login cookie not kept on a plain-HTTP server | set `COOKIE_SECURE=false` (or, better, use HTTPS) |
 | Forgotten password | `ADMIN_USERNAME=… ADMIN_PASSWORD='…' npm run db:login` with that database's `DATABASE_URL` |
+| An Excel button downloads a CSV | that's the live site running an older version; every download is .xlsx since CR-10 → deploy the latest code |
 | A save is refused with a red message | intended: the message says why and what to do (rules in `lib/rules.js`) |
 
 `NEXT_PUBLIC_APP_MODE=prototype` brings back the old field-selection tool (`/?k=…`, `/review?a=…`) used before spec v1.

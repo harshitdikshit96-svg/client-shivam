@@ -144,3 +144,18 @@ The downloads follow the client's sample formats exactly: headings character for
 - **Form D "Name of Owner/Contractor"** is no longer typed separately: it is the work order's **"Name of the supervisor /
   Auth. Personnel representing the contractor"** (entered when the work order is created), or the firm name when that is blank.
   The manual owner-name field added earlier the same day was removed before release.
+
+## CR-10 — 31 Oct 2026 (review feedback)
+- **No CSV downloads remain.** Engage Workmen → **Download Excel** is the Form D wage statement (.xlsx) of the selected
+  work order, for its latest month with saved wages (if none, it says so and offers Wage Entry). **FORM A** is an .xlsx
+  register of workmen. The CSV writer is removed. Wage Entry → Download Excel was already Form D (.xlsx, CR-8).
+  The live site showed CSVs because it still runs the last pushed version (`d5f6e97`).
+- **Firm switch:** the old firm's records no longer flash after picking another firm. The drop-down shows the new firm
+  at once, and the page shows a loading shimmer (React `<Suspense>`, `components/App.js`) until the new firm's data
+  arrives. A slow answer for an earlier choice can no longer overwrite a later one (`components/Data.js`).
+- **A crash in a button's code** shows a plain message ("Something went wrong on this screen…") instead of the
+  technical error, with the details in the browser console.
+- **Tests that stop these coming back:**
+  - The every-button test now fails on any crash in a button's code and on any download that isn't an .xlsx.
+  - New tests cover the firm switch (shimmer, and the out-of-order answer), the Engage and FORM A Excel files, and,
+    in the browser, UI-12 (slow firm switch) and UI-13 (real .xlsx files).

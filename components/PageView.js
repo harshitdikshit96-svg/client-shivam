@@ -77,8 +77,14 @@ function LivePage({ screen, go, params, live }) {
       setErrors({});
       await fn();
     } catch (e) {
-      setErrors(e.fields ?? {});
-      live.fail(e);
+      // a bug in the screen's code (not a refusal from the server): a plain message for the user, the details in the console
+      if (e instanceof TypeError || e instanceof ReferenceError) {
+        console.error("[action failed]", e);
+        live.notify("error", "Something went wrong on this screen and nothing was changed. Reload the page and try again; if it happens again, tell your administrator.");
+      } else {
+        setErrors(e.fields ?? {});
+        live.fail(e);
+      }
     }
     top.current?.scrollIntoView?.({ block: "nearest" });
   };
