@@ -86,11 +86,23 @@ describe.each([0, 1])("firm %i", (fi) => {
     }
   });
 
-  it("lists: active / inactive / moved-out workmen and the engaged counts match the tables", async () => {
+  it("lists: active (per work order) / available (Engage) / moved-out workmen and the engaged counts match the tables", async () => {
     const state = await sql(`SELECT w.wuin,
-        CASE WHEN w.date_of_exit IS NOT NULL THEN 'moved' WHEN EXISTS (SELECT 1 FROM engagements e WHERE e.workman_id = w.id AND e.engaged_to IS NULL) THEN 'active' ELSE 'inactive' END AS s
+        CASE WHEN w.date_of_exit IS NOT NULL THEN 'moved' WHEN EXISTS (SELECT 1 FROM engagements e WHERE e.workman_id = w.id AND e.engaged_to IS NULL) THEN 'active' ELSE 'inactive' END AS s,
+        (SELECT e.work_order_id FROM engagements e WHERE e.workman_id = w.id AND e.engaged_to IS NULL) AS wo
       FROM workmen w WHERE w.firm_id = $1`, [firm().id]);
-    for (const [screenId, s, col] of [["wm_active", "active", 1], ["wm_inactive", "inactive", 1], ["wm_moved", "moved", 1]]) {
+    // CR-11: Active Workmen shows the workmen of the work order picked in its drop-down; together they are every active workman
+    const approved = await sql("SELECT id FROM work_orders WHERE firm_id = $1 AND status = 'approved'", [firm().id]);
+    const seen = [];
+    for (const o of approved) {
+      await show(firm().id, "wm_active", { wo: o.id });
+      const listed = tableRows("x").map((c) => c[1]);
+      expect(sorted(listed), `wm_active wo ${o.id}`).toEqual(sorted(state.filter((x) => x.s === "active" && x.wo === o.id).map((x) => x.wuin)));
+      seen.push(...listed);
+    }
+    expect(sorted(seen)).toEqual(sorted(state.filter((x) => x.s === "active").map((x) => x.wuin)));
+    // the Engage list is the inactive (available) workmen; there is no separate Inactive list
+    for (const [screenId, s, col] of [["wm_engage", "inactive", 3], ["wm_moved", "moved", 1]]) {
       await show(firm().id, screenId);
       expect(sorted(tableRows("x").map((c) => c[col])), screenId).toEqual(sorted(state.filter((x) => x.s === s).map((x) => x.wuin)));
     }

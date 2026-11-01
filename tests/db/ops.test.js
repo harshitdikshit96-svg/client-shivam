@@ -213,24 +213,38 @@ describe("work order approval → engagement → wages", () => {
     expect(again.fields[`row.${w.id}`]).toMatch(/already engaged on GEMC-2/);
   });
 
-  it("date of exit ends the engagement and moves the workman out", async () => {
+  it("moving out (CR-11): only once the workman is inactive; then moved out for good, records kept", async () => {
     const { firm, wo } = await setup();
     await OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "approve" });
     const w = await OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN() });
     await OPS.engageWorkmen(db, { firmId: firm.id, workOrderId: wo.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
-    await OPS.updateWorkman(db, { firmId: firm.id, workmanId: w.id, values: WORKMAN("123412341234", { exitDate: "2026-09-15" }) });
+    expect((await rejects(OPS.deleteWorkman(db, { firmId: firm.id, workmanId: w.id, exitDate: "2026-09-15" }))).message).toMatch(/engaged on GEMC-1.*Only an inactive workman can be moved out/);
+    await OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "complete", endDate: "2026-09-30" });   // → inactive
+    const lastDay = (await firmSnapshot(db, firm.id)).engagements[0].to;
+    expect(await OPS.deleteWorkman(db, { firmId: firm.id, workmanId: w.id, exitDate: lastDay })).toMatchObject({ movedOut: w.id, exitDate: lastDay });
     const snap = await firmSnapshot(db, firm.id);
-    expect(snap.workmen[0]).toMatchObject({ state: "moved", to: "2026-09-15" });
-    expect(snap.engagements[0].to).toBe("2026-09-15");
+    expect(snap.workmen).toHaveLength(1);   // kept, not erased
+    expect(snap.workmen[0]).toMatchObject({ state: "moved", status: "Moved out", exitDate: lastDay, to: lastDay, engagedIn: null });
+    expect(snap.engagements).toHaveLength(1);
   });
 
-  it("completing an order ends its engagements: workmen become inactive", async () => {
+  it("completing an order ends its engagements on the last working day typed in: workmen become inactive", async () => {
     const { firm, wo } = await setup();
     await OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "approve" });
     const w = await OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN() });
     await OPS.engageWorkmen(db, { firmId: firm.id, workOrderId: wo.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
-    expect(await OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "complete" })).toMatchObject({ status: "completed", ended: 1 });
-    expect((await firmSnapshot(db, firm.id)).workmen[0].state).toBe("inactive");
+    // dates are never taken from today or the Date of Completion: without a typed date nothing happens
+    const none = await rejects(OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "complete" }));
+    expect(none.message).toMatch(/Enter the last working day of the 1 workman on GEMC-1/);
+    expect(none.fields).toMatchObject({ "complete.endDate": "Required" });
+    expect((await firmSnapshot(db, firm.id)).workOrders[0].status).toBe("approved");
+    expect((await rejects(OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "complete", endDate: "2026-06-30" }))).message).toMatch(/cannot be completed with 30\/06\/2026/);
+    expect(await OPS.setWorkOrderStatus(db, { firmId: firm.id, workOrderId: wo.id, move: "complete", endDate: "2026-08-20" })).toMatchObject({ status: "completed", ended: 1 });
+    expect((await firmSnapshot(db, firm.id)).engagements[0].to).toBe("2026-08-20");   // exactly the typed day
+    // the ended engagement no longer shows as "Engaged in" anywhere (lists, Engage screen, FORM A); history stays
+    const snap = await firmSnapshot(db, firm.id);
+    expect(snap.workmen[0]).toMatchObject({ state: "inactive", status: "Inactive", engagedIn: null, engagedWoId: null, engagedFrom: null, engFrom: null, currentWoId: null });
+    expect(snap.engagements.map((e) => [e.workmanId, e.to !== null])).toEqual([[w.id, true]]);
   });
 
   it("approving an order without a wage rate points to its Config", async () => {
@@ -305,10 +319,10 @@ describe("field validation (same rules as on screen, lib/validate.js)", () => {
     const w = await OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN("1234 5678 9012", { mobile: "98765 43210", ifsc: "sbin0001234" }) });
     expect(w).toMatchObject({ aadhaar: "123456789012", mobile: "9876543210", ifsc: "SBIN0001234" });
   });
-  it("workman: date of birth in the past and at least 18 at joining (lib/rules.js minimumAge)", async () => {
+  it("workman: a future date of birth or under 18 at joining (lib/rules.js minimumAge) is saved with a warning", async () => {
     const { firm } = await setup();
-    expect((await bad(OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN("1", { dob: "2030-01-01" }) })))["details.dob"]).toMatch(/past/);
-    expect((await bad(OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN("123412341234", { dob: "2012-01-01" }) })))["details.doj"]).toMatch(/under 18/);
+    expect((await OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN("111111111111", { dob: "2030-01-01" }) })).warnings).toEqual([expect.stringMatching(/not in the past/)]);
+    expect((await OPS.createWorkman(db, { firmId: firm.id, values: WORKMAN("123412341234", { dob: "2012-01-01" }) })).warnings).toEqual([expect.stringMatching(/under 18/)]);
   });
   it("workman: a choice not in the list is refused", async () => {
     const { firm } = await setup();
@@ -344,15 +358,20 @@ describe("field validation (same rules as on screen, lib/validate.js)", () => {
     expect(f["rates.Unskilled"]).toMatch(/2 decimals/);
     expect(f["rates.Skilled"]).toMatch(/more than 0/);
   });
-  it("bill: amounts with at most 2 decimals; received and approval dates not before the bill", async () => {
+  it("bill: amounts with at most 2 decimals; received and approval dates before the bill are saved with a warning", async () => {
     const { firm } = await setup();
-    const f = await bad(OPS.saveBill(db, { firmId: firm.id, values: { details: {
+    const details = {
       partyName: "NEC", billNo: "B 1", billDate: "2026-09-10", taxable: "12.345", received: "100", receivedDate: "2026-09-01",
       approved: "Yes", approvalDate: "2026-09-01",
-    } } }));
+    };
+    const f = await bad(OPS.saveBill(db, { firmId: firm.id, values: { details } }));
     expect(f["details.taxable"]).toMatch(/2 decimals/);
-    expect(f["details.receivedDate"]).toMatch(/on or after the Bill Date/);
-    expect(f["details.approvalDate"]).toMatch(/on or after the Bill Date/);
+    expect(Object.keys(f)).toEqual(["details.taxable"]);
+    const b = await OPS.saveBill(db, { firmId: firm.id, values: { details: { ...details, taxable: "12.34" } } });
+    expect(b.warnings).toEqual([
+      "The Received Date (01/09/2026) is before the Bill Date (10/09/2026)",
+      "The Approval Date (01/09/2026) is before the Bill Date (10/09/2026)",
+    ]);
   });
   it("reset password: at least 10 characters", async () => {
     expect((await bad(OPS.resetPassword(db, { values: { form: { current: "x", new: "short", confirm: "short" } } })))["form.new"]).toMatch(/at least 10/);

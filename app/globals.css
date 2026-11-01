@@ -299,6 +299,9 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 .notice-ok { background: #e6f4ea; border-color: #b7e2c6; color: #1f4b33; }
 .notice-info { background: #e8f0fe; border-color: #c6d7fb; color: #1d3a7a; }
 .notice-error { background: var(--danger-bg); border-color: #efb7bd; color: #58151c; }
+.notice-warn { background: #fff4e0; border-color: #f3cf8f; color: #5c3b00; }
+.notice-warnings { flex-basis: 100%; order: 1; font-size: 14px; }
+.notice-warnings ul { margin: 4px 0 2px; padding-left: 20px; }
 .notice-sub { font-size: 13px; opacity: .85; }
 .notice-actions { margin-left: auto; display: inline-flex; gap: 12px; align-items: center; }
 .guide { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: #fff7e0; border: 1px solid #f2dc9b; color: #5c4400; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }

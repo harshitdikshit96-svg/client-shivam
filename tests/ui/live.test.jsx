@@ -216,7 +216,7 @@ describe("records are linked to each other", () => {
     expect(within(screen.getByText("Bills (Dispatch Register)").closest("section")).getByText("DEMO-BILL-01")).toBeInTheDocument();
   });
   it("a workman's work order opens the work order page", async () => {
-    const { go } = await renderLive("wm_active");
+    const { go } = await renderLive("wm_active", { wo: ids.orders[1].id });
     const row = screen.getByText("DEMO-W05").closest("tr");
     await userEvent.click(within(row).getByRole("button", { name: "DEMO-WO-002" }));
     expect(go).toHaveBeenCalledWith("wo_view", { wo: ids.orders[1].id });
@@ -272,8 +272,8 @@ describe("Bulk Accommodation explains itself and works", () => {
     const panel = screen.getByRole("region", { name: "Bulk Accommodation" });
     expect(panel).toHaveTextContent(/where the workman stays/);
     await userEvent.selectOptions(within(panel).getByLabelText("Accommodation to set"), "Company Quarter");
-    await userEvent.click(within(panel).getByRole("button", { name: /Apply to 6 ticked/ }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/set to "Company Quarter" for 6 workmen/);
+    await userEvent.click(within(panel).getByRole("button", { name: /Apply to 4 ticked/ }));   // the 4 workmen of the top work order
+    expect(await screen.findByRole("status")).toHaveTextContent(/set to "Company Quarter" for 4 workmen/);
     await db2.close();
   });
 });
@@ -381,30 +381,31 @@ describe("Work Location (District) suggests the State's districts, and takes any
 });
 
 describe("Engage: the date of joining", () => {
-  it("the calendar starts at the later of the work order's start and the workman's date of joining", async () => {
+  it("the calendar does not hold back any date (CR-13): dates are the user's entry", async () => {
     const { data } = await renderLive("wm_engage", { wo: ids.orders[0].id });
-    const wo = data.workOrders.find((o) => o.id === ids.orders[0].id);
-    for (const w of data.workmen.filter((x) => x.state !== "moved")) {
-      const input = screen.queryByLabelText(`New engagement from for ${w.wuin}`);
-      if (!input) continue;   // already engaged here
-      expect(input, w.wuin).toHaveAttribute("min", [wo.start, w.doj].sort().at(-1));
-    }
+    const inputs = data.workmen.map((w) => screen.queryByLabelText(`New engagement from for ${w.wuin}`)).filter(Boolean);
+    expect(inputs.length).toBeGreaterThan(0);
+    for (const input of inputs) { expect(input).not.toHaveAttribute("min"); expect(input).not.toHaveAttribute("max"); }
   });
-  it("an engagement before the date of joining says when the workman joined and how to fix it", async () => {
+  it("an engagement before the date of joining is saved, with a warning saying when the workman joined", async () => {
     const late = (await firmSnapshot(t.db, ids.firms[0].id)).workmen.find((w) => w.doj === "2026-10-01");
-    const err = await OPS.engageWorkmen(t.db, { firmId: ids.firms[0].id, workOrderId: ids.orders[0].id, rows: [{ workmanId: late.id, from: "2026-09-15" }] }).catch((e) => e);
-    expect(err.fields[`row.${late.id}`]).toMatch(/joined on 01\/10\/2026 \(Date of Joining\).*Pick a later date, or correct the Date of Joining/);
+    const r = await OPS.engageWorkmen(t.db, { firmId: ids.firms[0].id, workOrderId: ids.orders[0].id, rows: [{ workmanId: late.id, from: "2026-09-15" }] });
+    expect(r.engaged).toBe(1);
+    expect(r.warnings).toEqual([`${late.wuin}'s engagement on ${r.woNumber} starts on 15/09/2026, before the Date of Joining (01/10/2026)`]);
   });
 });
 
-describe("Dispatch Register: Tax Rate and GST Rate drop-downs, total calculated (CR-7)", () => {
+describe("Dispatch Register: one GST Rate drop-down, total calculated (CR-7, CR-11)", () => {
   const amount = (label) => screen.getByLabelText(label).value;
-  it("picking 5% tax and 18% GST shows the amounts and the total straight away", async () => {
+  it("there is no Tax Rate: picking 18% GST shows the GST and Taxable + GST as the total straight away", async () => {
     await renderLive("dispatch_register");
+    expect(screen.queryByLabelText("Tax Rate (%)")).toBeNull();
+    expect(screen.queryByLabelText("Tax Amount")).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Tax Amount" })).toBeNull();
     await userEvent.type(screen.getByLabelText("Taxable Amount"), "100000");
-    await userEvent.selectOptions(screen.getByLabelText("Tax Rate (%)"), "5");
     await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "18");
-    expect([amount("Tax Amount"), amount("GST Amount"), amount("Total Amount")]).toEqual(["5,000.00", "18,000.00", "1,23,000.00"]);
+    expect(screen.queryByLabelText("GST Amount")).toBeNull();                         // Taxable → GST % → Total, nothing else
+    expect(amount("Total Amount")).toBe("1,18,000.00");
     expect(screen.getByLabelText("Total Amount")).toHaveAttribute("readonly");
   });
   it("'Other' opens a box for any rate, and the total follows it", async () => {
@@ -413,57 +414,168 @@ describe("Dispatch Register: Tax Rate and GST Rate drop-downs, total calculated 
     expect(screen.queryByLabelText("GST Rate (%) — other rate")).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "other");
     await userEvent.type(screen.getByLabelText("GST Rate (%) — other rate"), "12.5");
-    expect(amount("GST Amount")).toBe("125.00");
     expect(amount("Total Amount")).toBe("1,125.00");
     await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "0");
     expect(screen.queryByLabelText("GST Rate (%) — other rate")).toBeNull();
     expect(amount("Total Amount")).toBe("1,000.00");
   });
-  it("the list shows tax, GST and total; Edit on a bill with an unlisted rate opens it as Other", async () => {
+  it("the list shows Taxable, GST % and Total (no GST Amount); Edit on a bill with an unlisted GST rate opens it as Other", async () => {
     await renderLive("dispatch_register");
+    const heads = screen.getAllByRole("columnheader").map((h) => h.textContent);
+    const at = (h) => heads.indexOf(h);
+    expect(heads).not.toContain("GST Amount");
+    expect([at("Taxable Amount") + 1, at("GST %") + 1]).toEqual([at("GST %"), at("Total Amount")]);   // side by side, in this order
     const row = screen.getByText("DEMO-BILL-02").closest("tr");
-    expect(row).toHaveTextContent("52,000.00");   // taxable
-    expect(row).toHaveTextContent("1,040.00");    // 2% tax
-    expect(row).toHaveTextContent("9,360.00");    // 18% GST
-    expect(row).toHaveTextContent("62,400.00");   // total
+    const cells = within(row).getAllByRole("cell").map((c) => c.textContent);
+    expect([cells[at("Taxable Amount")], cells[at("GST %")], cells[at("Total Amount")]]).toEqual(["52,000.00", "12%", "58,240.00"]);
+    expect(row).not.toHaveTextContent("6,240.00");   // the GST amount is not shown anywhere
     await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
-    await waitFor(() => expect(screen.getByLabelText("Tax Rate (%) — other rate")).toHaveValue("2"));
-    expect(screen.getByLabelText("GST Rate (%)")).toHaveValue("18");
-    expect(amount("Total Amount")).toBe("62,400.00");
+    await waitFor(() => expect(screen.getByLabelText("GST Rate (%) — other rate")).toHaveValue("12"));
+    expect(amount("Total Amount")).toBe("58,240.00");
   });
 });
 
-describe("Engage: the selected work order's workmen + the free pool (CR-7, corrected)", () => {
-  const listed = () => screen.getAllByRole("row").slice(1).map((r) => r.textContent);
-  it("opens on the top work order (no '— select —'), listing its workmen as Engaged and the free workmen to tick", async () => {
+describe("workmen flow (CR-11): Engage = available workmen, Active = a work order's workmen, Moved Out = for good", () => {
+  const ORDER = (woNo, end = "2027-03-31") => ({
+    form: { woNo, workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end, company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
+    statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } });
+  const PERSON = (aadhaar, name) => ({ details: { aadhaar, name, gender: "Male", relative: "Suresh", dob: "2001-12-08", nationality: "Indian", doj: "2026-06-01", designation: "MTS", skill: "Unskilled", pfType: "EPF", bankAc: "000111222333", presentAddr: "Ledo", pwd: "No", exServ: "No", accommodation: "Self" } });
+  /** A fresh firm: work orders (approved) and workmen. */
+  async function fresh(orders = ["GEMC-1"], people = [["123412341234", "Anurag"]]) {
+    const x = await createTestDb();
+    const f = await OPS.createFirm(x.db, { values: { form: { name: "Flow Firm" } } });
+    const wos = [];
+    for (const n of orders) {
+      const wo = await OPS.createWorkOrder(x.db, { firmId: f.id, values: ORDER(n) });
+      await OPS.setWorkOrderStatus(x.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
+      wos.push(wo);
+    }
+    const ws = [];
+    for (const [a, n] of people) ws.push(await OPS.createWorkman(x.db, { firmId: f.id, values: PERSON(a, n) }));
+    return { x, f, wos, ws, render: (id, params = {}) => renderLive(id, params, { db: x.db, firmId: f.id }) };
+  }
+  const wuins = () => screen.queryAllByRole("row").slice(1).map((r) => r.querySelectorAll("td")).filter((c) => c.length > 1);
+
+  it("a date before joining is saved: the success message turns amber and lists the warning (CR-13)", async () => {
+    const t2 = await fresh();
+    const [w] = t2.ws;
+    const before = new Date(Date.parse(`${w.dateOfJoining}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+    await t2.render("wm_engage");
+    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), before);
+    await userEvent.click(screen.getByRole("button", { name: "Engage Selected" }));
+    await waitFor(() => expect(document.querySelector(".notice")).not.toBeNull());
+    const notice = document.querySelector(".notice");
+    expect(notice).toHaveClass("notice-warn");
+    expect(notice).toHaveTextContent(/1 workman engaged on GEMC-1/);
+    expect(notice).toHaveTextContent(/Saved, but please check these dates:.*You can correct them any time/);
+    expect(notice).toHaveTextContent(`before the Date of Joining (${w.dateOfJoining.split("-").reverse().join("/")})`);
+    expect((await firmSnapshot(t2.x.db, t2.f.id)).workmen[0].state).toBe("active");
+  });
+  it("there is no Inactive Workmen screen or menu item", () => {
+    expect(SCREEN_BY_ID.wm_inactive).toBeUndefined();
+    expect(JSON.stringify(SCREENS)).not.toContain("wm_inactive");
+  });
+  it("Engage opens on the top work order and lists exactly the available workmen, each with a tick and Move Out", async () => {
     const { data } = await renderLive("wm_engage");
     const approved = data.workOrders.filter((o) => o.status === "approved");
     const dd = screen.getByLabelText("Work Order", { selector: "select" });
     expect(dd).toHaveValue(String(approved[0].id));
     expect(within(dd).queryByText("— select —")).toBeNull();
-    const here = data.workmen.filter((w) => w.state === "active" && w.currentWoId === approved[0].id);
-    const elsewhere = data.workmen.filter((w) => w.state === "active" && w.currentWoId !== approved[0].id);
+    expect(screen.queryByRole("checkbox", { name: /Also show/ })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Engaged in (Work Order)" })).toBeNull();
     const free = data.workmen.filter((w) => w.state === "inactive");
-    expect(here.length && elsewhere.length && free.length).toBeTruthy();
-    for (const w of here) {
+    expect(free.length).toBeGreaterThan(0);
+    expect(wuins()).toHaveLength(free.length);
+    for (const w of free) {
       const row = screen.getByText(w.wuin).closest("tr");
-      expect(within(row).getByText("Engaged"), w.wuin).toBeInTheDocument();
-      expect(within(row).queryByRole("checkbox")).toBeNull();
+      expect(within(row).getByRole("checkbox", { name: `Select ${w.wuin}` })).toBeInTheDocument();
+      expect(within(row).getByRole("button", { name: "Move Out" })).toBeInTheDocument();
     }
-    for (const w of free) expect(within(screen.getByText(w.wuin).closest("tr")).getByRole("checkbox", { name: `Select ${w.wuin}` })).toBeInTheDocument();
-    for (const w of elsewhere) expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
-    expect(listed()[0]).toContain(here[0].wuin);   // this order's workmen first
+    for (const w of data.workmen.filter((x) => x.state !== "inactive")) expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
+    // the list does not change with the work order picked
+    await userEvent.selectOptions(dd, String(approved[1].id));
+    expect(wuins()).toHaveLength(free.length);
   });
-  it("picking another work order lists that order's workmen; 'Also show…' adds those on other orders", async () => {
-    const { data } = await renderLive("wm_engage");
-    const second = data.workOrders.filter((o) => o.status === "approved")[1];
-    await userEvent.selectOptions(screen.getByLabelText("Work Order", { selector: "select" }), String(second.id));
-    for (const w of data.workmen.filter((x) => x.state === "active")) {
-      if (w.currentWoId === second.id) expect(within(screen.getByText(w.wuin).closest("tr")).getByText("Engaged")).toBeInTheDocument();
-      else expect(screen.queryByText(w.wuin), w.wuin).toBeNull();
+  it("Active Workmen has the same work order drop-down (top one first) and lists only that order's workmen", async () => {
+    const { data } = await renderLive("wm_active");
+    const approved = data.workOrders.filter((o) => o.status === "approved");
+    const dd = screen.getByLabelText("Work Order", { selector: "select" });
+    expect(dd).toHaveValue(String(approved[0].id));
+    expect([...dd.options].map((o) => o.value)).toEqual(approved.map((o) => String(o.id)));
+    for (const o of approved) {
+      await userEvent.selectOptions(dd, String(o.id));
+      const mine = data.workmen.filter((w) => w.state === "active" && w.currentWoId === o.id);
+      expect(wuins(), o.woNo).toHaveLength(mine.length);
+      for (const w of mine) expect(screen.getByText(w.wuin)).toBeInTheDocument();
+      for (const w of data.workmen.filter((x) => !(x.state === "active" && x.currentWoId === o.id))) expect(screen.queryByText(w.wuin), `${o.woNo} ${w.wuin}`).toBeNull();
     }
-    await userEvent.click(screen.getByLabelText("Also show workmen engaged on other work orders (to move them)"));
-    for (const w of data.workmen.filter((x) => x.state === "active")) expect(screen.getByText(w.wuin), w.wuin).toBeInTheDocument();
+  });
+  it("full cycle: engage → on Active, off Engage; Mark Completed → back on Engage (blank columns), off Active; Move Out → only under Moved Out", async () => {
+    const t2 = await fresh();
+    const [wo] = t2.wos;
+    const [w] = t2.ws;
+    // 1. available
+    await t2.render("wm_engage");
+    expect(screen.getByText("Anurag")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: `Select ${w.wuin}` }));
+    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), "2026-10-22");
+    await userEvent.click(screen.getByRole("button", { name: "Engage Selected" }));
+    await waitFor(() => expect(screen.queryByText("Anurag")).toBeNull());   // gone from the available list at once
+    cleanup();
+    await t2.render("wm_active");
+    expect(screen.getByText(w.wuin).closest("tr")).toHaveTextContent("GEMC-1");
+    cleanup();
+    // 2. the order is marked completed: the workman is available again, with no trace of the ended engagement
+    await OPS.setWorkOrderStatus(t2.x.db, { firmId: t2.f.id, workOrderId: wo.id, move: "complete", endDate: "2026-10-31" });
+    await t2.render("wm_engage");
+    const row = screen.getByText("Anurag").closest("tr");
+    expect(row).not.toHaveTextContent("GEMC-1");
+    expect(row).not.toHaveTextContent("22/10/2026");
+    expect(within(row).getByRole("checkbox", { name: `Select ${w.wuin}` })).toBeInTheDocument();
+    // 3. move out from the Engage list, with a Date of Exit
+    await userEvent.click(within(row).getByRole("button", { name: "Move Out" }));
+    const dlg = screen.getByRole("dialog");
+    expect(dlg).toHaveTextContent(/for good/);
+    const exit = within(dlg).getByLabelText("Date of Exit");
+    expect(exit).toHaveValue("");                                                      // typed by the user, never pre-filled
+    expect(within(dlg).getByRole("button", { name: "Move Out" })).toBeDisabled();
+    await userEvent.type(exit, "2026-10-31");
+    await userEvent.click(within(dlg).getByRole("button", { name: "Move Out" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("moved out on 31/10/2026");
+    await waitFor(() => expect(screen.queryByText("Anurag")).toBeNull());
+    cleanup();
+    await t2.render("wm_moved");
+    const out = screen.getByText(w.wuin).closest("tr");
+    expect(out).toHaveTextContent("31/10/2026");
+    expect(within(out).queryByRole("button", { name: /Inactive|^Engage|Restore|Move/ })).toBeNull();   // never back
+    cleanup();
+    await t2.render("wm_view", { wm: w.id });
+    expect(screen.getByRole("button", { name: "Edit Workman" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Engage on a Work Order" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Delete Workman/ })).toBeNull();
+    cleanup();
+    await t2.render("wm_active");
+    expect(screen.queryByText(w.wuin)).toBeNull();
+    await t2.x.close();
+  });
+  it("Delete Workman on the workman's page moves an inactive workman out; an engaged workman has no Delete or Engage button", async () => {
+    const t2 = await fresh(["GEMC-1"], [["123412341234", "Anurag"], ["432143214321", "Bikash"]]);
+    const [a, b2] = t2.ws;
+    await OPS.engageWorkmen(t2.x.db, { firmId: t2.f.id, workOrderId: t2.wos[0].id, rows: [{ workmanId: b2.id, from: "2026-07-01" }] });
+    await t2.render("wm_view", { wm: b2.id });
+    expect(screen.queryByRole("button", { name: /Delete Workman/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Engage on a Work Order" })).toBeNull();
+    cleanup();
+    await t2.render("wm_view", { wm: a.id });
+    await userEvent.click(screen.getByRole("button", { name: "Delete Workman (Move Out)" }));
+    const dlg = screen.getByRole("dialog");
+    expect(within(dlg).getByLabelText("Date of Exit")).toHaveValue("");
+    await userEvent.type(within(dlg).getByLabelText("Date of Exit"), "2026-10-15");
+    await userEvent.click(within(dlg).getByRole("button", { name: "Move Out" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/moved out on/);
+    const snap = await firmSnapshot(t2.x.db, t2.f.id);
+    expect(snap.workmen.map((w) => [w.fullName, w.state])).toEqual([["Anurag", "moved"], ["Bikash", "active"]]);
+    await t2.x.close();
   });
   it("with no approved work order the drop-down shows '— none available —'", async () => {
     const empty = await createTestDb();
@@ -475,29 +587,23 @@ describe("Engage: the selected work order's workmen + the free pool (CR-7, corre
     expect(within(dd).getByText("— none available —")).toBeInTheDocument();
     expect(screen.getByText(/no approved work order to engage workmen on/)).toBeInTheDocument();
   });
-  it("opened for one engaged workman (Engage on another work order), that workman is listed first", async () => {
+  it("opened from an available workman's page (Engage on a Work Order), that workman is listed first and ticked", async () => {
     const snap = await firmSnapshot(t.db, ids.firms[0].id);
-    const w = snap.workmen.find((x) => x.state === "active");
+    const w = snap.workmen.filter((x) => x.state === "inactive").at(-1);
     await renderLive("wm_engage", { wm: w.id });
     const first = screen.getAllByRole("row")[1];
     expect(first).toHaveTextContent(w.wuin);
+    expect(within(first).getByRole("checkbox")).toBeChecked();
   });
-  it("when every workman is on another work order, the empty list says how to move someone", async () => {
-    const empty = await createTestDb();
-    const f = await OPS.createFirm(empty.db, { values: { form: { name: "All Busy" } } });
-    const order = (woNo) => ({
-      form: { woNo, workName: "Work", peName: "PE", start: "2026-06-01", peDesig: "M", end: "2027-03-31", company: "C", peContact: "9000000000", state: "Assam", district: "Tinsukia" },
-      statutory: { epfPercent: "12", esiPercent: "0.75", esiGrossCeiling: "21000", otMultiplier: "2", hoursPerDay: "8" }, rates: { Unskilled: { basicDaily: "556" } } });
-    const a = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: order("A-1") });
-    const b2 = await OPS.createWorkOrder(empty.db, { firmId: f.id, values: order("B-1") });
-    for (const wo of [a, b2]) await OPS.setWorkOrderStatus(empty.db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
-    const w = await OPS.createWorkman(empty.db, { firmId: f.id, values: { details: { aadhaar: "123412341234", name: "Ramesh", gender: "Male", relative: "Suresh", dob: "1990-01-01", nationality: "Indian", doj: "2026-06-01", designation: "LABOUR", skill: "Unskilled", pfType: "EPF", bankAc: "000111222333", presentAddr: "Ledo", pwd: "No", exServ: "No", accommodation: "Self" } } });
-    await OPS.engageWorkmen(empty.db, { firmId: f.id, workOrderId: a.id, rows: [{ workmanId: w.id, from: "2026-07-01" }] });
-    await renderLive("wm_engage", { wo: b2.id }, { db: empty.db, firmId: f.id });
-    expect(screen.getByText(/Every workman is already engaged on a work order/)).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText("Work Order", { selector: "select" }), String(a.id));
-    expect(within(screen.getByText("Ramesh").closest("tr")).getByText("Engaged")).toBeInTheDocument();
-    await empty.close();
+  it("when every workman is engaged, the empty Engage list says how a workman becomes free", async () => {
+    const t2 = await fresh(["A-1", "B-1"]);
+    await OPS.engageWorkmen(t2.x.db, { firmId: t2.f.id, workOrderId: t2.wos[0].id, rows: [{ workmanId: t2.ws[0].id, from: "2026-07-01" }] });
+    await t2.render("wm_engage", { wo: t2.wos[1].id });
+    expect(screen.getByText(/No workman is free.*marked completed/)).toBeInTheDocument();
+    cleanup();
+    await t2.render("wm_active", { wo: t2.wos[1].id });
+    expect(screen.getByText(/No workmen are engaged on B-1/)).toBeInTheDocument();
+    await t2.x.close();
   });
 });
 

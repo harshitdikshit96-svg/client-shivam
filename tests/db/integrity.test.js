@@ -5,6 +5,8 @@ import { createTestDb } from "../helpers/db";
 import { OPS, UserError } from "@/lib/ops";
 import { RULES } from "@/lib/rules";
 import { firmSnapshot } from "@/lib/data";
+import { eq } from "drizzle-orm";
+import { monthlySheets } from "@/db/schema";
 
 let t, db;
 beforeEach(async () => { t = await createTestDb(); db = t.db; });
@@ -55,15 +57,15 @@ describe("delete: allowed for records entered by mistake, refused (naming why) w
     await OPS.submitWages(db, { firmId: s.f.id, sheetId: r.sheetId });
     expect((await refused(OPS.deleteWages(db, { firmId: s.f.id, sheetId: r.sheetId }))).message).toMatch(/Reopen for Editing/);
   });
-  it("workman: refused with engagements (suggests Date of Exit); deleted when there is nothing linked", async () => {
+  it("workman: Delete moves an inactive workman out (kept under Workmen Moved Out); refused while engaged (CR-11)", async () => {
     const s = await setup();
     const e = await engaged(s);
-    const err = await refused(OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id }));
-    expect(err.message).toMatch(/1 engagement.*Date of Exit/);
+    const err = await refused(OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id, exitDate: "2026-10-01" }));
+    expect(err.message).toMatch(/engaged on GEMC-1.*end the engagement first/);
     expect(err.fix).toMatchObject({ to: "wm_view" });
-    await OPS.deleteEngagement(db, { firmId: s.f.id, engagementId: e.id });
-    await OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id });
-    expect((await firmSnapshot(db, s.f.id)).workmen).toHaveLength(0);
+    await OPS.endEngagement(db, { firmId: s.f.id, engagementId: e.id, to: "2026-09-30" });
+    await OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id, exitDate: "2026-10-01" });
+    expect((await firmSnapshot(db, s.f.id)).workmen.map((w) => [w.wuin, w.state])).toEqual([[s.w.wuin, "moved"]]);
   });
   it("work order: refused with engagements / bills; a fresh pending one (and its Config) is deleted", async () => {
     const s = await setup();
@@ -120,26 +122,59 @@ describe("edits that would strand linked records are refused", () => {
     const s = await setup();
     await engaged(s);
     await OPS.saveWages(db, { firmId: s.f.id, workOrderId: s.wo.id, year: 2027, month: 2, rows: [{ workmanId: s.w.id, daysWorked: "20" }] });
-    expect((await refused(OPS.setWorkOrderStatus(db, { firmId: s.f.id, workOrderId: s.wo.id, move: "complete" }))).message).toMatch(/cannot be completed.*February 2027/);
+    expect((await refused(OPS.setWorkOrderStatus(db, { firmId: s.f.id, workOrderId: s.wo.id, move: "complete", endDate: "2026-12-31" }))).message).toMatch(/cannot be completed.*February 2027/);
   });
-  it("a date of exit before wages already paid", async () => {
+});
+
+describe("dates that look wrong are saved with a warning, not refused (CR-13)", () => {
+  it("a date of exit before the work (and wages) already recorded", async () => {
     const s = await setup();
-    await engaged(s);
+    const e = await engaged(s);
     await OPS.saveWages(db, { firmId: s.f.id, workOrderId: s.wo.id, year: 2026, month: 9, rows: [{ workmanId: s.w.id, daysWorked: "20" }] });
-    const e = await refused(OPS.updateWorkman(db, { firmId: s.f.id, workmanId: s.w.id, values: WORKMAN("123412341234", { exitDate: "2026-08-31" }) }));
-    expect(e.fields["details.exitDate"]).toMatch(/September 2026/);
+    await OPS.endEngagement(db, { firmId: s.f.id, engagementId: e.id, to: "2026-09-30" });
+    const r = await OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id, exitDate: "2026-08-31" });
+    expect(r).toMatchObject({ exitDate: "2026-08-31", warnings: [expect.stringMatching(/before 30\/09\/2026, the last day of the engagement on GEMC-1/)] });
+    expect((await firmSnapshot(db, s.f.id)).workmen[0].state).toBe("moved");
+  });
+  it("a date of exit before the Date of Joining is still refused (the database keeps exit on or after joining)", async () => {
+    const s = await setup();
+    const err = await refused(OPS.deleteWorkman(db, { firmId: s.f.id, workmanId: s.w.id, exitDate: "2020-01-01" }));
+    expect(err.fields["move.exitDate"]).toMatch(/Date of Joining/);
   });
   it("a date of joining after the first engagement started", async () => {
     const s = await setup();
     await engaged(s);
-    const e = await refused(OPS.updateWorkman(db, { firmId: s.f.id, workmanId: s.w.id, values: WORKMAN("123412341234", { doj: "2026-08-01" }) }));
-    expect(e.fields["details.doj"]).toMatch(/01\/07\/2026/);
+    const w = await OPS.updateWorkman(db, { firmId: s.f.id, workmanId: s.w.id, values: WORKMAN("123412341234", { doj: "2026-08-01" }) });
+    expect(w.dateOfJoining).toBe("2026-08-01");
+    expect(w.warnings).toEqual([expect.stringMatching(/after 01\/07\/2026, when the engagement on GEMC-1 started/)]);
   });
-  it("order dates shortened past an engagement: the message names the workman", async () => {
+  it("order dates shortened past an engagement: saved, and the warning names the workman", async () => {
     const s = await setup();
     await engaged(s);
     const values = { ...ORDER(), form: { ...ORDER().form, start: "2026-08-01" } };
-    expect((await refused(OPS.updateWorkOrder(db, { firmId: s.f.id, workOrderId: s.wo.id, values }))).message).toMatch(/WM00001's engagement/);
+    const r = await OPS.updateWorkOrder(db, { firmId: s.f.id, workOrderId: s.wo.id, values });
+    expect(r.commencementDate).toBe("2026-08-01");
+    expect(r.warnings).toEqual([expect.stringMatching(/WM00001's engagement .* outside the work order/)]);
+  });
+  it("a clean save carries no warnings", async () => {
+    const s = await setup();
+    const r = await OPS.updateWorkOrder(db, { firmId: s.f.id, workOrderId: s.wo.id, values: ORDER() });
+    expect(r.warnings).toBeUndefined();
+  });
+  it("submitting after the deadline day is allowed, with a warning", async () => {
+    const s = await setup();
+    await engaged(s);
+    const { sheetId } = await OPS.saveWages(db, { firmId: s.f.id, workOrderId: s.wo.id, year: 2026, month: 8, rows: [{ workmanId: s.w.id, daysWorked: "20" }] });
+    await db.update(monthlySheets).set({ deadline: "2026-09-10" }).where(eq(monthlySheets.id, sheetId));
+    const r = await OPS.submitWages(db, { firmId: s.f.id, sheetId });
+    expect(r.status).toBe("submitted");
+    expect(r.warnings).toEqual(["Submitted after the submission deadline (10/09/2026)"]);
+  });
+  it("what would break the records is still refused: an engagement ending before it starts", async () => {
+    const s = await setup();
+    const e = await engaged(s, "2026-08-01");
+    expect((await refused(OPS.editEngagement(db, { firmId: s.f.id, engagementId: e.id, from: "2026-08-01", to: "2026-07-01" }))).message).toMatch(/on or after Engaged From/);
+    expect((await refused(OPS.endEngagement(db, { firmId: s.f.id, engagementId: e.id, to: "2026-07-31" }))).message).toMatch(/on or after 01\/08\/2026/);
   });
 });
 
@@ -163,25 +198,33 @@ describe("names", () => {
   });
 });
 
-describe("Dispatch Register: tax rate and GST rate (CR-7)", () => {
+describe("Dispatch Register: one GST rate, total calculated (CR-7, CR-11)", () => {
   const BILL = (wo, over = {}) => ({ details: { wo: String(wo), partyName: "NEC", billNo: "B1", billDate: "2026-09-01", taxable: "100000", ...over } });
-  it("the tax, GST and total amounts are calculated from the rates and stored", async () => {
+  it("the GST and total amounts are calculated from the GST rate and stored; a sent Tax Rate is ignored", async () => {
     const { f, wo } = await setup();
     const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { taxRate: "5", gstRate: "18" }) });
-    expect(b).toMatchObject({ taxRate: "5.00", taxAmount: "5000.00", gstRate: "18.00", gstAmount: "18000.00", totalAmount: "123000.00" });
-    expect((await firmSnapshot(db, f.id)).bills[0]).toMatchObject({ taxable: 100000, tax: 5000, gst: 18000, total: 123000 });
+    expect(b).toMatchObject({ gstRate: "18.00", gstAmount: "18000.00", totalAmount: "118000.00" });
+    expect(b).not.toHaveProperty("taxRate");
+    expect(b).not.toHaveProperty("taxAmount");
+    const row = (await firmSnapshot(db, f.id)).bills[0];
+    expect(row).toMatchObject({ taxable: 100000, gst: 18000, total: 118000 });
+    expect(row).not.toHaveProperty("tax");
+    const { rows } = await t.client.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'dispatch_register' AND column_name LIKE 'tax%'");
+    expect(rows.map((r) => r.column_name)).toEqual(["taxable_amount"]);
   });
   it("an 'Other' rate is kept as typed; a typed amount is ignored (always calculated)", async () => {
     const { f, wo } = await setup();
-    const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { taxRate: "2.5", gstRate: "12", gst: "1" }) });
-    expect(b).toMatchObject({ taxAmount: "2500.00", gstAmount: "12000.00", totalAmount: "114500.00" });
-    expect((await OPS.getBill(db, { firmId: f.id, billId: b.id })).details).toMatchObject({ taxRate: "2.50", gstRate: "12.00" });
+    const b = await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { gstRate: "12.5", gst: "1" }) });
+    expect(b).toMatchObject({ gstAmount: "12500.00", totalAmount: "112500.00" });
+    expect((await OPS.getBill(db, { firmId: f.id, billId: b.id })).details).toMatchObject({ gstRate: "12.50" });
   });
   it("blank rates mean 0%; a rate above 100 or with letters is refused on the field", async () => {
     const { f, wo } = await setup();
-    expect(await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id) })).toMatchObject({ taxAmount: "0.00", gstAmount: "0.00", totalAmount: "100000.00" });
-    const e = await refused(OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { billNo: "B2", taxRate: "120", gstRate: "x" }) }));
-    expect(Object.keys(e.fields)).toEqual(expect.arrayContaining(["details.taxRate", "details.gstRate"]));
+    expect(await OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id) })).toMatchObject({ gstAmount: "0.00", totalAmount: "100000.00" });
+    for (const gstRate of ["120", "x"]) {
+      const e = await refused(OPS.saveBill(db, { firmId: f.id, values: BILL(wo.id, { billNo: "B2", gstRate }) }));
+      expect(Object.keys(e.fields), gstRate).toEqual(["details.gstRate"]);
+    }
   });
   it("changing the taxable amount or a rate recalculates the stored amounts", async () => {
     const { f, wo } = await setup();

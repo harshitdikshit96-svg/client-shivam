@@ -20,8 +20,9 @@ import { PrintOverlay, FormD, WageSlip } from "./Forms";
 const PageCtx = createContext(null);
 const usePage = () => useContext(PageCtx);
 
-const MONEY_COLS = new Set(["taxable", "tax", "gst", "total", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "cmps", "esi", "fine", "otherDed", "damage"]);
-const fmtValue = (id, v) => (v == null || v === "" ? null : typeof v === "number" && MONEY_COLS.has(id) ? fmtMoney(v) : fmtDate(v));
+const MONEY_COLS = new Set(["taxable", "gst", "total", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "cmps", "esi", "fine", "otherDed", "damage"]);
+const fmtValue = (id, v) => (v == null || v === "" ? null : typeof v === "number" && MONEY_COLS.has(id) ? fmtMoney(v)
+  : id === "gstRate" && typeof v === "number" ? `${v}%` : fmtDate(v));
 
 /** Params for the screen a row button opens. */
 function rowParams(row, to) {
@@ -131,6 +132,13 @@ function Notice() {
   return (
     <div className={`notice notice-${n.type}`} role={n.type === "error" ? "alert" : "status"}>
       <span>{n.text}</span>
+      {n.warnings?.length > 0 && (
+        <span className="notice-warnings">
+          <strong>Saved, but please check {n.warnings.length === 1 ? "this date" : "these dates"}:</strong>
+          <ul>{n.warnings.map((w) => <li key={w}>{w}.</li>)}</ul>
+          <span className="notice-sub">You can correct {n.warnings.length === 1 ? "it" : "them"} any time.</span>
+        </span>
+      )}
       {n.fields && Object.keys(n.fields).length > 0 && n.type === "error" && !Object.keys(n.fields).some((k) => k.startsWith("row.")) && (
         <span className="notice-sub">{Object.keys(n.fields).length} field{Object.keys(n.fields).length === 1 ? "" : "s"} marked in red below.</span>
       )}
@@ -438,14 +446,9 @@ function DataRow({ row, index, list, block }) {
   );
 }
 
-// Engage Workmen: tick + date per row
-const engagedHere = (row, ctx) => {
-  const wo = engageWoId(ctx);
-  return wo != null && row.currentWoId === wo;
-};
+// Engage Workmen: tick + date per row (the list holds only workmen free to engage)
 function EngageTick({ row }) {
   const ctx = usePage();
-  if (engagedHere(row, ctx)) return <span className="pill">Engaged</span>;
   const sel = ctx.local.sel ?? {};
   const checked = !!sel[row.id]?.checked || (!ctx.local.sel && Number(ctx.params.wm) === row.id);
   return (
@@ -455,11 +458,10 @@ function EngageTick({ row }) {
 }
 function EngageFrom({ row }) {
   const ctx = usePage();
-  if (engagedHere(row, ctx)) return <span className="muted">since {fmtDate(row.engagedFrom)}</span>;
   const sel = ctx.local.sel ?? {};
-  const wo = ctx.d.workOrders.find((o) => o.id === engageWoId(ctx));
+  // any date can be picked (CR-13): one outside the order or before joining is saved with a warning
   return (
-    <input type="date" aria-label={`New engagement from for ${row.wuin}`} value={sel[row.id]?.from ?? ""} min={[wo?.start, row.doj].filter(Boolean).sort().at(-1)} max={wo?.end}
+    <input type="date" aria-label={`New engagement from for ${row.wuin}`} value={sel[row.id]?.from ?? ""}
       onChange={(e) => ctx.setLocal({ sel: { ...sel, [row.id]: { ...sel[row.id], checked: true, from: e.target.value } } })} />
   );
 }
@@ -609,7 +611,7 @@ function Control({ it, block, live }) {
   const fmt = it.format ? inputProps(it.format) : { maxLength: FORMATS.text.max };
   if (it.maxLength) fmt.maxLength = it.maxLength;
   const common = { "aria-invalid": err ? true : undefined, "aria-label": it.label, onBlur: check };
-  // calculated from other fields of the form (e.g. Dispatch Register: tax, GST and total from the rates)
+  // calculated from other fields of the form (e.g. Dispatch Register: GST and total from the rates)
   if (it.calc) {
     const v = billTotals(ctx.values?.[block.id] ?? {})[it.calc];
     return <input type="text" readOnly tabIndex={-1} className="calc" aria-label={it.label} value={fmtMoney(Number(v))} />;

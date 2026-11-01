@@ -65,11 +65,16 @@ const confirmMove = async (ctx, wo, move) => {
     approve: ["Approve", `Approve work order ${wo.woNo}? Workmen can then be engaged on it and wages entered.`],
     reject: ["Reject", `Reject work order ${wo.woNo}? It moves to the rejected list; it can be resubmitted later.`],
     resubmit: ["Resubmit", `Send work order ${wo.woNo} for approval again?`],
-    complete: ["Mark Completed", `Mark ${wo.woNo} completed? Its ${wo.workmenCount} current engagement(s) end today (or on the completion date) and those workmen become inactive. Wages can still be entered for its months.`],
+    complete: ["Mark Completed", wo.workmenCount
+      ? `Mark ${wo.woNo} completed? Enter the last working day of its ${wo.workmenCount} workm${wo.workmenCount === 1 ? "an" : "en"}: their engagements end on that day and they are free again under Engage Workmen. Wages can still be entered for its months.`
+      : `Mark ${wo.woNo} completed? No workmen are engaged on it. Wages can still be entered for its months.`],
     reopen: ["Reopen", `Reopen ${wo.woNo}? It goes back to the ongoing list.`],
   }[move];
-  if (!(await ctx.live.ask({ title: `${words[0]}?`, body: words[1], confirm: words[0] }))) return;
-  const r = await ctx.live.run("setWorkOrderStatus", { workOrderId: wo.id, move });
+  // dates are always typed by the user: Mark Completed asks for the last working day (nothing is taken from today)
+  const askDate = move === "complete" && wo.workmenCount > 0;
+  const answer = await ctx.live.ask({ title: `${words[0]}?`, body: words[1], confirm: words[0], ...(askDate ? { input: { type: "date", label: "Last working day", value: "" } } : {}) });
+  if (!answer) return;
+  const r = await ctx.live.run("setWorkOrderStatus", { workOrderId: wo.id, move, ...(askDate ? { endDate: answer } : {}) });
   const next = {
     approve: { label: "Engage workmen on it", to: "wm_engage", params: { wo: wo.id } },
     complete: { label: "Completed Work Orders", to: "wo_completed" },
@@ -107,11 +112,28 @@ const endEngagement = async (ctx, e) => {
   if (e.to) return info(ctx, `This engagement already ended on ${fmtDate(e.to)}.`);
   const to = await ctx.live.ask({
     title: `End engagement of ${e.wuin} on ${e.woNo}?`, body: `Engaged from ${fmtDate(e.from)}. Pick the last working day; the workman becomes inactive until engaged again.`,
-    confirm: "End engagement", input: { type: "date", label: "Last working day", value: todayIso() < e.from ? e.from : todayIso() },
+    confirm: "End engagement", input: { type: "date", label: "Last working day", value: "" },
   });
   if (!to) return;
   await ctx.live.run("endEngagement", { engagementId: e.id, to });
   toast(ctx, `Engagement of ${e.wuin} on ${e.woNo} ended on ${fmtDate(to)}.`, { label: "Engage on another work order", to: "wm_engage", params: { wm: e.workmanId } });
+};
+
+/** Delete Workman / Move Out (CR-11): only an inactive workman; asks the Date of Exit. Moved out is for good. */
+const moveOut = async (ctx, w) => {
+  if (w.state === "moved") return info(ctx, `${w.wuin} has already moved out (Date of Exit ${fmtDate(w.exitDate)}).`);
+  if (w.state === "active") {
+    return info(ctx, `${w.wuin} is engaged on ${w.engagedIn}. Only an inactive workman can be moved out: end the engagement first, or use Mark Completed on the work order.`,
+      { label: "Manage Engagements", to: "wm_view", params: { wm: w.id } });
+  }
+  const exitDate = await ctx.live.ask({
+    title: `Move out ${w.wuin} (${w.fullName})?`,
+    body: "The workman leaves the firm for good: listed only under Workmen Moved Out, and cannot be engaged or brought back. Records and wages are kept. Pick the Date of Exit.",
+    confirm: "Move Out", input: { type: "date", label: "Date of Exit", value: "" },
+  });
+  if (!exitDate) return;
+  await ctx.live.run("deleteWorkman", { workmanId: w.id, exitDate });
+  return exitDate;
 };
 
 const sheetRow = (s) => ({ ...s, period: periodLabel(s.year, s.month), wageStatus: WAGE_STATUS[s.status], net: s.net, gross: s.gross, totalDed: s.totalDed });
@@ -209,7 +231,7 @@ export function previewLine(wo, skill, typed, limit = null) {
 }
 
 // rates come back from the database as "18.00" / "2.50": shown as 18 / 2.5, so the drop-down matches 18%
-const tidyRates = (d) => ({ ...d, ...Object.fromEntries(["taxRate", "gstRate"].filter((k) => d[k] != null && d[k] !== "").map((k) => [k, String(Number(d[k]))])) });
+const tidyRates = (d) => ({ ...d, ...Object.fromEntries(["gstRate"].filter((k) => d[k] != null && d[k] !== "").map((k) => [k, String(Number(d[k]))])) });
 
 // ---------- statutory documents (lib/forms.js): Form D wage statement, FORM VIII-C wage slip ----------
 const statementOf = (ctx, sheet) => formD({ firm: ctx.d.firm, wo: ctx.d.workOrders.find((o) => o.id === sheet.workOrderId), sheet, workmen: ctx.d.workmen });
@@ -250,6 +272,12 @@ export function engageWoId(ctx) {
   const picked = ctx.local.wo ?? (ctx.params.wo ? String(ctx.params.wo) : "");
   return (approved.find((o) => String(o.id) === String(picked)) ?? approved[0])?.id ?? null;
 }
+const approvedOptions = (ctx) => ctx.d.workOrders.filter((o) => o.status === "approved").map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` }));
+// the work order drop-down of Engage Workmen and Active Workmen
+const woFilter = {
+  get: (b, item, ctx) => String(engageWoId(ctx) ?? ""),
+  set: (b, item, v, ctx) => ctx.setLocal({ wo: v, rowErrors: {} }),
+};
 
 const workmenWord = (n) => `${n} workm${n === 1 ? "an" : "en"}`;
 
@@ -412,25 +440,17 @@ export const CONTROLLERS = {
       }
       return null;
     },
-    options: (b, item, ctx) => (item === "wo" ? ctx.d.workOrders.filter((o) => o.status === "approved").map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` })) : null),
-    filter: {
-      get: (b, item, ctx) => (item === "showEngaged" ? !!ctx.local.showEngaged : String(engageWoId(ctx) ?? "")),
-      set: (b, item, v, ctx) => ctx.setLocal(item === "showEngaged" ? { showEngaged: v, rowErrors: {} } : { wo: v, rowErrors: {} }),
-    },
-    // The selected work order's own workmen (marked Engaged) and the free pool (not engaged anywhere, can be ticked).
-    // Workmen on other work orders only when asked for (to move them), or the one this screen was opened for from his
-    // page ("Engage on another work order").
+    options: (b, item, ctx) => (item === "wo" ? approvedOptions(ctx) : null),
+    filter: woFilter,
+    // CR-11: the available workmen only — every workman of the firm not engaged on any work order (there is no separate
+    // Inactive list). The one this screen was opened for from his page comes first.
     rows: (b, ctx) => {
-      const wo = engageWoId(ctx);
       const opened = Number(ctx.params.wm) || null;
-      const rows = ctx.d.workmen.filter((w) => w.state === "inactive"
-        || (w.state === "active" && (w.currentWoId === wo || ctx.local.showEngaged || w.id === opened)));
-      const rank = (w) => (w.id === opened ? 0 : w.currentWoId === wo ? 1 : 2);
-      return [...rows].sort((a, b2) => rank(a) - rank(b2));
+      return ctx.d.workmen.filter((w) => w.state === "inactive").sort((a, b2) => (b2.id === opened) - (a.id === opened));
     },
     empty: (b, ctx) => (ctx.d.workmen.some((w) => w.state === "active")
-      ? { text: "Every workman is already engaged on a work order. To move one, tick \"Also show workmen engaged on other work orders\" above; or add a New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }
-      : { text: "No workmen in this firm yet. Add them with New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }),
+      ? { text: "No workman is free: every workman is engaged on a work order. A workman becomes free when the work order is marked completed or the engagement is ended (Active Workmen → Manage Engagements). Or add a New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }
+      : { text: ctx.d.workmen.length ? "No workmen available: every workman of this firm has moved out. Add them with New Workman." : "No workmen in this firm yet. Add them with New Workman.", fix: { label: "New Workman", to: "wm_edit", params: { back: "wm_engage" } } }),
     action: (b, item, ctx) => {
       if (item === "engage") return async () => {
         const wo = engageWoId(ctx);
@@ -468,14 +488,36 @@ export const CONTROLLERS = {
       };
       return null;
     },
-    row: (b, item, row, ctx) => (item === "letter" ? () => info(ctx, UPLOAD_SOON) : null),
+    row: (b, item, row, ctx) => {
+      if (item === "letter") return () => info(ctx, UPLOAD_SOON);
+      if (item === "moveOut") return async () => {
+        const date = await moveOut(ctx, row);
+        if (date) toast(ctx, `${row.wuin} (${row.fullName}) moved out on ${fmtDate(date)}. Listed under Workmen Moved Out.`, { label: "Workmen Moved Out", to: "wm_moved" });
+      };
+      return null;
+    },
   },
-  wm_active: workmenList("active", { text: "No active workmen. A workman is active while engaged on a work order.", fix: { label: "Engage Workmen", to: "wm_engage" } }),
-  wm_inactive: workmenList("inactive", { text: "No inactive workmen. Workmen show here when they are not engaged on any work order (new, or their engagement ended)." }),
+  // CR-11: the workmen engaged on the selected work order (the same drop-down as Engage Workmen)
+  wm_active: {
+    ...workmenList("active", null),
+    guide: (ctx) => (!ctx.d.firm ? NO_FIRM : !ctx.d.workOrders.some((o) => o.status === "approved")
+      ? { text: "There is no ongoing (approved) work order, so no workman is active. Workmen of a completed work order are free again under Engage Workmen.", fix: { label: "Engage Workmen", to: "wm_engage" } } : null),
+    options: (b, item, ctx) => (item === "wo" ? approvedOptions(ctx) : null),
+    filter: woFilter,
+    rows: (b, ctx) => {
+      const wo = engageWoId(ctx);
+      return ctx.d.workmen.filter((w) => w.state === "active" && w.currentWoId === wo);
+    },
+    empty: (b, ctx) => {
+      const wo = ctx.d.workOrders.find((o) => o.id === engageWoId(ctx));
+      if (!wo) return { text: "No ongoing work order to show workmen for." };
+      return { text: `No workmen are engaged on ${wo.woNo}. Engage them from the available workmen.`, fix: { label: "Engage Workmen", to: "wm_engage", params: { wo: wo.id } } };
+    },
+  },
   wm_moved: {
     guide: (ctx) => (!ctx.d.firm ? NO_FIRM : null),
     rows: (b, ctx) => ctx.d.workmen.filter((w) => w.state === "moved"),
-    empty: () => ({ text: "No workmen have moved out. Set a Date of Exit on a workman (Edit) to move them out." }),
+    empty: () => ({ text: "No workmen have moved out. Delete Workman or Move Out (on Engage Workmen) moves an inactive workman out of the firm for good." }),
     row: (b, item, row, ctx) => (item === "engBefore" ? () => ctx.go("wm_view", { wm: row.id }) : null),
   },
   wm_view: {
@@ -483,14 +525,14 @@ export const CONTROLLERS = {
     guide: (ctx) => (!ctx.d.firm ? NO_FIRM : !workmanById(ctx.d, ctx.params.wm)
       ? { stop: true, text: "This workman is not in the selected firm. Pick one from the list.", fix: { label: "View Active Workmen", to: "wm_active" } } : null),
     kv: (b, ctx) => workmanById(ctx.d, ctx.params.wm),
-    hide: (b, item, ctx) => b === "actions" && item === "engage" && workmanById(ctx.d, ctx.params.wm)?.state === "moved",
+    // Engage and Delete (Move Out) are for an inactive workman only; a moved-out workman stays moved out
+    hide: (b, item, ctx) => b === "actions" && (item === "engage" || item === "delete") && workmanById(ctx.d, ctx.params.wm)?.state !== "inactive",
     action: (b, item, ctx) => {
       const w = workmanById(ctx.d, ctx.params.wm);
-      if (item === "delete") return () => confirmDelete(ctx, {
-        title: `Delete workman ${w.wuin} (${w.fullName})?`, body: "Only a workman with no engagements and no wages can be deleted; otherwise set a Date of Exit.",
-        op: "deleteWorkman", args: { workmanId: w.id }, done: (r) => `Workman ${r.wuin} deleted.`,
-        then: () => ctx.go(w.state === "moved" ? "wm_moved" : w.state === "active" ? "wm_active" : "wm_inactive", {}, { keepNotice: true }),
-      });
+      if (item === "delete") return async () => {
+        const date = await moveOut(ctx, w);
+        if (date) toast(ctx, `Workman ${w.wuin} (${w.fullName}) moved out on ${fmtDate(date)}. Listed under Workmen Moved Out.`, { label: "Workmen Moved Out", to: "wm_moved" });
+      };
       return () => ctx.go(item === "edit" ? "wm_edit" : "wm_engage", { wm: w.id });
     },
     rows: (b, ctx) => {
@@ -527,7 +569,7 @@ export const CONTROLLERS = {
     action: (b, item, ctx) => async () => {
       if (ctx.params.wm) {
         const w = await ctx.live.run("updateWorkman", { workmanId: Number(ctx.params.wm), values: ctx.values });
-        toast(ctx, `Workman ${w.wuin} saved.${w.dateOfExit ? " A Date of Exit is set, so the workman is listed under Workmen Moved Out." : ""}`);
+        toast(ctx, `Workman ${w.wuin} saved.`);
         return ctx.go("wm_view", { wm: w.id }, { keepNotice: true });
       }
       const w = await ctx.live.run("createWorkman", { values: ctx.values });
@@ -544,7 +586,7 @@ export const CONTROLLERS = {
       if (!sel.usable.length) return { text: "Wages are entered against an approved work order. There is none in this firm yet.", fix: ctx.d.workOrders.length ? { label: "Pending Work Order Approval", to: "wo_pending" } : { label: "Create New Work Order", to: "wo_new" } };
       if (!sel.wo) return { text: "Choose the work order above." };
       if (!sel.wo.config || !Object.keys(sel.wo.config.rates).length) return { text: `${sel.wo.woNo} has no Per Day Wage in its Config, so wages cannot be calculated.`, fix: { label: "Open Config", to: "wo_config", params: { wo: sel.wo.id } } };
-      if (!orderInMonth(sel.wo, sel.year, sel.month)) return { text: `${sel.wo.woNo} runs from ${fmtDate(sel.wo.start)} to ${fmtDate(sel.wo.end)}; choose a month inside it.` };
+      if (!orderInMonth(sel.wo, sel.year, sel.month) && !sel.sheet) return { text: `${sel.wo.woNo} runs from ${fmtDate(sel.wo.start)} to ${fmtDate(sel.wo.end)}; choose a month inside it.` };
       return null;
     },
     options: (b, item, ctx) => (item === "wo" ? wageSelection(ctx).usable.map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}${o.status === "completed" ? " (completed)" : ""}` })) : null),

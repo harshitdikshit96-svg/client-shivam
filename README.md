@@ -95,7 +95,7 @@ lib/
   rules.js       business rules that can be switched on/off (RULES)
   validate.js    field formats (FORMATS): what may be typed, length, pattern, message
   districts.js   districts per State (suggestions for Work Location (District))
-  bill.js        Dispatch Register amounts: tax, GST and total from the rates (same formula on screen and server)
+  bill.js        Dispatch Register amounts: GST and total from the GST rate (same formula on screen and server)
   forms.js       statutory documents: Form D wage statement and FORM VIII-C wage slip (headings + values, Excel layout)
   xlsx.js        minimal .xlsx writer (text cells keep bank / UAN digits; no dependency)
   wages.js, payroll.js   wage maths (paise arithmetic) and saving / recalculating a month
@@ -111,7 +111,7 @@ tests/, e2e/     see §7
 1. **Logged out:** `App.js` asks `GET /api/session`; not logged in → `Landing.js`. Logging in sends `POST /api/session`, which
    sets the `cp_session` cookie (httpOnly, SameSite=Lax, Secure in production, 7 days; only its SHA-256 is stored in `sessions`).
 2. **Load:** the portal calls `GET /api/data?firm=ID`, which runs `firmSnapshot()` (`lib/data.js`). That returns the firm's
-   work orders (with Config and engaged counts), workmen (active / inactive / moved), engagements, wage months with
+   work orders (with Config and engaged counts), workmen (active / inactive = available / moved out), engagements, wage months with
    lines, bills and recent activity. Every screen renders from this one snapshot.
 3. **Screens:** `PageView` draws the screen described in `lib/schema.js`. `components/screens.js` supplies its rows,
    options, guidance ("create a work order first"), labels and button handlers.
@@ -131,21 +131,42 @@ tests/, e2e/     see §7
 | `work_orders` | a firm's work orders | WO number unique within the firm; pending → approved / rejected → completed |
 | `work_order_config` | EPF %, ESI %, ceilings, OT rate, hours/day | one per work order |
 | `work_order_rates` | Per Day Wage + VDA per skill | one per skill per order |
-| `workmen` | workman profile | WUIN unique within the firm; Aadhaar per `RULES` |
+| `workmen` | workman profile | WUIN unique within the firm; Aadhaar per `RULES`; `date_of_exit` set = moved out, for good |
 | `engagements` | workman ↔ work order over dates | same firm; one work order per workman per day |
 | `monthly_sheets` | one per work order per month | draft → submitted (locked) → approved; Reopen for Editing |
 | `wage_lines` | days / OT / extras + calculated wages + Config snapshot | net = gross − deductions |
-| `dispatch_register` | bills: taxable, tax rate + amount, GST rate + amount, total, receipts, GST / EPF / ESIC status | bill number unique within the firm; amounts calculated from the rates (`lib/bill.js`) |
+| `dispatch_register` | bills: taxable, GST %, total, receipts, GST / EPF / ESIC status | bill number unique within the firm; Total = Taxable + Taxable × GST % (`lib/bill.js`); the GST amount is stored but not shown |
 
 - **Keys:** every table has a generated `id`. Records point at each other by id only, so every typed value
   (Aadhaar, WUIN, WO number, firm name…) stays editable.
 - **Firm isolation:** every operation checks the record belongs to the firm in the request.
-- **Integrity (in `lib/ops.js`, not the database):**
-  - A workman is on one work order on any day.
-  - Engagements fall inside the order's dates and on or after the date of joining.
+- **Integrity (in `lib/ops.js`, not the database):** only what would break the records is refused:
+  - A workman is on one work order on any day; an engagement can't end before it starts.
   - Wage days can't exceed the month, the days engaged on that order, or the month across all orders.
-  - Edits that would strand engagements or paid wages are refused.
+  - Edits that would leave paid wages outside an engagement are refused.
   - Deletes are refused while linked records exist, and the message names them.
+- **Dates are warnings, not blocks (CR-13).** A date that looks wrong is saved, and the success message turns amber and
+  lists it ("Saved, but please check this date"), to be corrected later. That covers engagements outside the order's
+  dates or before the Date of Joining, order dates that leave engagements or wage months outside, a future Date of Birth
+  or under 18 at joining, Received/Approval Date before the Bill Date, an odd Date of Exit, and submitting wages after
+  the deadline day. Ops return these as `warnings: [...]` on the result. Still refused: a missing date where one is
+  needed, an end before its start, and a Date of Exit before the Date of Joining (exit can't be edited later).
+
+### Workman life cycle (CR-11)
+| State | Means | Shown on | How a workman gets there |
+|---|---|---|---|
+| **Available** (inactive) | not engaged on any work order | **Engage Workmen** (tick to engage, or **Move Out**) | added with New Workman; or his work order is **Marked Completed**; or his engagement is **Ended** |
+| **Active** | engaged on an ongoing work order | **Active Workmen**, picking the work order in its drop-down | **Engage Selected** on Engage Workmen |
+| **Moved out** | left the firm, for good | **Workmen Moved Out** only | **Move Out** (Engage list) or **Delete Workman (Move Out)** on his page, with a Date of Exit. Only an available workman can be moved out |
+
+- **No date ever triggers anything.** Every date is typed by the user; nothing is taken from today or from a work
+  order's dates, and a date that looks wrong only gives a warning (see Integrity above).
+- **Mark Completed** is the only thing that completes a work order (the Date of Completion is just a typed date). It asks
+  for the **last working day** and ends every current engagement on that order on exactly that day, so its workmen are
+  available again. End Engagement and Move Out likewise ask for their date (nothing pre-filled).
+- **Moving a workman to another order:** end his engagement (his page → Engagements → End), then engage him from the Engage list.
+- **Moved out is permanent:** the record, engagements and wages are kept (registers need them), but he can't be
+  engaged, edited back, or moved out again. The Date of Exit is set only by Move Out; the Edit form doesn't have it.
 
 ### Rules and formats (change these instead of code)
 - **`lib/rules.js` → `RULES`:**
@@ -221,7 +242,7 @@ still be typed, so a missing district never blocks anyone.
   npm outdated
   npm install next@<version> react@<v> react-dom@<v>    # one group at a time
   npm audit --omit=dev                                  # production dependencies must stay at 0
-  npm test && npm run test:e2e                          # 383 + 31 must pass
+  npm test && npm run test:e2e                          # 389 + 33 must pass
   ```
 - `npm audit` (all dependencies) reports moderate esbuild advisories inside `drizzle-kit`. That's a development tool only, never deployed.
 - After upgrading Drizzle, run `npm run db:generate`. It should report **no changes**; if it writes a file, read it before committing.
@@ -255,11 +276,11 @@ Full steps in **`docs/DEPLOY.md`**. In short:
 ## 7. Tests
 | Command | What |
 |---|---|
-| `npm test` | all of the below except e2e (383 tests) |
+| `npm test` | all of the below except e2e (389 tests) |
 | `npm run test:unit` | wage maths, formats, districts, and **the screens vs the client's spec** |
 | `npm run test:db` | operations, integrity rules, sessions, schema, the full ERP CRUD plan, on in-memory PostgreSQL |
 | `npm run test:ui` | React screens in jsdom on the demo data. Includes **every button on every screen must do something**, screens vs raw SQL, error handling |
-| `npm run test:e2e` | Playwright + Chromium against a production build on its own empty database (`.data/e2e`, `.next-e2e`): the full workflow, the HTTP API, security checks, firm switch, Excel files (31 tests). First time: `npx playwright install chromium` |
+| `npm run test:e2e` | Playwright + Chromium against a production build on its own empty database (`.data/e2e`, `.next-e2e`): the full workflow, the HTTP API, security checks, firm switch, Excel files, the workman life cycle (33 tests). First time: `npx playwright install chromium` |
 | `npm run test:coverage` | coverage report in `coverage/` |
 
 Helpers: `tests/helpers/db.js` (fresh migrated database per file), `tests/helpers/factories.js`. The test plan and results are in `docs/TEST-PLAN.md`.

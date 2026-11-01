@@ -83,11 +83,16 @@ export function DataProvider({ children, api = httpApi, initialData = null, onLo
     return promise;
   }, [load]);
 
+  // dates that look wrong are saved with warnings (CR-13); they ride on the next message the screen shows
+  const warned = useRef([]);
+
   /** Run an operation; refreshes the data afterwards. Throws ActionError for the screen to show. */
   const run = useCallback(async (op, args = {}, { refresh = true } = {}) => {
     setBusy(true);
+    warned.current = [];
     try {
       const result = await api("POST", { op, firmId: firmRef.current, ...args });
+      warned.current = result?.warnings ?? [];
       if (refresh) await load();
       return result;
     } catch (e) {
@@ -98,7 +103,12 @@ export function DataProvider({ children, api = httpApi, initialData = null, onLo
     }
   }, [api, load, onLoggedOut]);
 
-  const notify = useCallback((type, text, extra = {}) => setNotice(text ? { type, text, ...extra } : null), []);
+  const notify = useCallback((type, text, extra = {}) => {
+    if (!text) return setNotice(null);
+    const warnings = warned.current;
+    warned.current = [];
+    setNotice(warnings.length && type !== "error" ? { type: "warn", text, ...extra, warnings } : { type, text, ...extra });
+  }, []);
   /** Show an ActionError (or any error) in the message bar. */
   const fail = useCallback((e) => setNotice({ type: "error", text: e.message, fix: e.fix, fields: e.fields }), []);
 

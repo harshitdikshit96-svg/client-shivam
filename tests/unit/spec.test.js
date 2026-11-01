@@ -16,13 +16,14 @@ const RENAMED_SCREEN = { profile: "dispatch_register" };
 const RETITLED = { profile: "Dispatch Register" };            // was "Contractor Profile" under a "Dispatch Register" menu
 const MENU_LABEL = { Complaince: "Compliance" };               // spelling fixed
 // CR-1 (15 Oct): attendance is typed on the Wage Entry screen, so the separate attendance screens are gone
-const REMOVED = ["att_new", "att_submitted", "att_approved", "att_entry", "wm_photo"];   // attendance: CR-1; Workmen Photo: CR-6
+const REMOVED = ["att_new", "att_submitted", "att_approved", "att_entry", "wm_photo", "wm_inactive"];   // attendance: CR-1; Workmen Photo: CR-6; Inactive Workmen: CR-11 (they are the Engage list)
 
 // Screens that gained fields, columns, sections or buttons. Every v1 item must still be there, in order.
 const EXTENDED = [
   "wo_new", "wo_edit", "wo_ongoing", "wage_entry",                                         // CR-1
   "home", "wo_completed", "wo_pending", "wm_edit", "wm_engage", "wage_new", "wage_submitted", // CR-2
   "wage_approved", "wage_slip", "dispatch_register",
+  "wm_active", "wm_moved",                                                                    // CR-11: work order drop-down; Date of Exit column
 ];
 // CR-2: blocks renamed, wording updated, and items removed on purpose
 const RENAMED_BLOCK = { dispatch_register: { "Select Firm": "Bill Details" } };
@@ -35,8 +36,16 @@ const REWORDED = {
   "Important: ensure workmen engagement is correct, attendance is submitted before wage entry, and all mandatory workman fields are filled.":
     "Important: ensure workmen engagement is correct and all mandatory workman fields are filled before wage entry.",
   "Edit": "Save Bill",                                          // Dispatch Register: the form is always editable
+  // CR-11: there is no Inactive Workmen screen any more
+  "Manage Engagements: available under View Active, View Inactive Workmen and Moved Out Workmen. Use this to engage workmen for dates before the last attendance date.":
+    "Manage Engagements: available under Active Workmen and Workmen Moved Out, and on each workman's page. Use this to engage workmen for dates before the last attendance date.",
 };
-const DROPPED = { wo_new: ["Firm"] };                             // CR-2: the firm comes from the top bar
+const DROPPED = {
+  wo_new: ["Firm"],                                               // CR-2: the firm comes from the top bar
+  wm_edit: ["Date of Exit"],                                      // CR-11: set only by Delete Workman / Move Out, never edited
+  wm_engage: ["Engagement From", "Engaged in (Work Order)"],      // CR-11: the list holds only workmen not engaged anywhere
+  dispatch_register: ["GST Amount"],                             // CR-12: Taxable Amount → GST % → Total, nothing else
+};
 // option lists now filled from the selected firm's data
 const DYNAMIC_OPTIONS = { wm_engage: ["Work Order"] };
 // fields that became mandatory because the Dispatch Register is now a real form
@@ -58,7 +67,7 @@ const CR2_MENU = (menu) => {
   const wages = m.find((g) => g.label === "Wages");
   wages.items = [...wages.items, { label: "Submitted Wages" }, { label: "Approved Wages" }, { label: "Worker Wage Slip" }];
   const workmen = m.find((g) => g.label === "Workmen");
-  workmen.items = workmen.items.filter((i) => i.label !== "Workmen Photo");   // CR-6
+  workmen.items = workmen.items.filter((i) => i.label !== "Workmen Photo" && i.label !== "View Inactive Workmen");   // CR-6, CR-11
   return m;
 };
 
@@ -80,7 +89,7 @@ describe("v1 screens", () => {
   for (const screen of theirs.screens) {
     const id = RENAMED_SCREEN[screen.id] ?? screen.id;
     if (REMOVED.includes(id)) {
-      it(`${id} was removed (CR-1 / CR-6)`, () => expect(ours.screens.find((s) => s.id === id)).toBeUndefined());
+      it(`${id} was removed (CR-1 / CR-6 / CR-11)`, () => expect(ours.screens.find((s) => s.id === id)).toBeUndefined());
       continue;
     }
     describe(id, () => {

@@ -160,7 +160,7 @@ describe("WORK ORDER — create under a firm, config, edit, status", () => {
     await OPS.setWorkOrderStatus(db, { firmId: f.id, workOrderId: wo.id, move: "approve" });
     const w = await workman(f.id);
     await engage(f.id, wo.id, w.id, "2026-07-01");
-    const done = await OPS.setWorkOrderStatus(db, { firmId: f.id, workOrderId: wo.id, move: "complete" });
+    const done = await OPS.setWorkOrderStatus(db, { firmId: f.id, workOrderId: wo.id, move: "complete", endDate: "2026-09-30" });
     expect(done.ended).toBe(1);
     const s = await snap(f.id);
     expect(s.workOrders[0]).toMatchObject({ status: "completed", workmenCount: 0 });
@@ -176,11 +176,16 @@ describe("WORK ORDER — create under a firm, config, edit, status", () => {
     await OPS.setWorkOrderStatus(db, { firmId: f.id, workOrderId: wo.id, move: "reject" });
     expect((await rejects(engage(f.id, wo.id, w.id, "2026-07-01"))).message).toMatch(/rejected/);
   });
-  it("WO-08 dates of an order cannot be shortened so that existing engagements / wages fall outside it", async () => {
+  it("WO-08 dates of an order shortened past its engagements / wages are saved, with a warning naming them (CR-13)", async () => {
     const { f, wo, w } = await base();
     await wages(f.id, wo.id, 7, [{ workmanId: w.id, daysWorked: "20" }]);
-    await rejects(OPS.updateWorkOrder(db, { firmId: f.id, workOrderId: wo.id, values: EDIT("GEMC-1", { start: "2026-09-01" }) }));
-    expect((await snap(f.id)).workOrders[0].start).toBe("2026-06-01");
+    const r = await OPS.updateWorkOrder(db, { firmId: f.id, workOrderId: wo.id, values: EDIT("GEMC-1", { start: "2026-09-01" }) });
+    expect(r.warnings).toEqual([expect.stringMatching(/WM00001's engagement 01\/07\/2026 to now, the wages of July 2026 outside the work order/)]);
+    expect((await snap(f.id)).workOrders[0].start).toBe("2026-09-01");
+    // the July wages stay editable although the month is now outside the order
+    expect((await wages(f.id, wo.id, 7, [{ workmanId: w.id, daysWorked: "21" }])).saved).toBe(1);
+    // a month never saved still has to be inside the order
+    await rejects(wages(f.id, wo.id, 8, [{ workmanId: w.id, daysWorked: "5" }]));
   });
 });
 
@@ -201,13 +206,15 @@ describe("WORKMAN — create, read, update, exit", () => {
     expect(e.message).toMatch(/WM00001/);
     await workman(b.id);
   });
-  it("WM-03 required fields, under-18 on joining, future DOB and bad Aadhaar are refused", async () => {
+  it("WM-03 required fields and bad Aadhaar are refused; under-18 on joining and a future DOB are saved with a warning", async () => {
     const f = await firm(1);
     expect((await rejects(workman(f.id, "", {}))).fields).toHaveProperty("details.aadhaar");
     expect((await rejects(workman(f.id, "1234", {}))).fields).toHaveProperty("details.aadhaar");
-    expect((await rejects(workman(f.id, undefined, { dob: "2015-01-01" }))).fields).toHaveProperty("details.doj");
-    expect((await rejects(workman(f.id, undefined, { dob: "2099-01-01" }))).fields).toHaveProperty("details.dob");
     expect((await snap(f.id)).workmen).toHaveLength(0);
+    expect((await workman(f.id, "111111111111", { dob: "2015-01-01" })).warnings).toEqual(["By these dates the workman was under 18 on the Date of Joining"]);
+    expect((await workman(f.id, "222222222222", { dob: "2099-01-01" })).warnings).toEqual([expect.stringMatching(/Date of Birth \(01\/01\/2099\) is not in the past/)]);
+    expect((await workman(f.id, "333333333333", {})).warnings).toBeUndefined();
+    expect((await snap(f.id)).workmen).toHaveLength(3);
   });
   it("WM-04 the edit form loads the saved workman; edits show in the lists and the wage lines", async () => {
     const { f, wo, w } = await base();
@@ -221,18 +228,40 @@ describe("WORKMAN — create, read, update, exit", () => {
     expect(s.engagements[0].name).toBe("Ramesh Chandra Kumar");
     expect(s.sheets[0].lines[0].name).toBe("Ramesh Chandra Kumar");
   });
-  it("WM-05 a date of exit ends the current engagement and the workman shows as Moved out", async () => {
+  it("WM-05 Delete Workman / Move Out (CR-11): refused while engaged; needs a sensible Date of Exit; then Moved out for good", async () => {
     const { f, wo, w } = await base();
-    await OPS.updateWorkman(db, { firmId: f.id, workmanId: w.id, values: WORKMAN(undefined, { exitDate: "2026-08-15" }) });
+    const out = (exitDate) => OPS.deleteWorkman(db, { firmId: f.id, workmanId: w.id, exitDate });
+    const busy = await rejects(out("2026-08-15"));
+    expect(busy.message).toMatch(/engaged on GEMC-1 since 01\/07\/2026.*end the engagement first/);
+    expect(busy.fix).toMatchObject({ to: "wm_view", params: { wm: w.id } });
+    const e = (await snap(f.id)).engagements[0];
+    await OPS.endEngagement(db, { firmId: f.id, engagementId: e.id, to: "2026-08-31" });
+    expect((await rejects(out(""))).fields["move.exitDate"]).toMatch(/enter the last day/);
+    expect((await rejects(out("2026-05-01"))).fields["move.exitDate"]).toMatch(/Date of Joining \(01\/06\/2026\)/);
+    // future, or before the last engagement ended: saved with a warning (CR-13) — checked on fresh workmen below
+    expect((await out("2026-09-01")).warnings).toBeUndefined();
     const s = await snap(f.id);
-    expect(s.workmen[0]).toMatchObject({ status: "Moved out", exitDate: "2026-08-15" });
-    expect(s.engagements[0]).toMatchObject({ to: "2026-08-15", status: "Ended" });
+    expect(s.workmen).toHaveLength(1);
+    expect(s.workmen[0]).toMatchObject({ status: "Moved out", state: "moved", exitDate: "2026-09-01", to: "2026-08-31" });
+    expect(s.engagements[0]).toMatchObject({ to: "2026-08-31", status: "Ended" });
     expect(s.workOrders[0].workmenCount).toBe(0);
-    await rejects(engage(f.id, wo.id, w.id, "2026-09-01"));
+    // never back: not engaged again, not moved out twice, the engagement cannot be reopened past the exit
+    await rejects(engage(f.id, wo.id, w.id, "2026-09-15"));
+    expect((await rejects(out("2026-10-01"))).message).toMatch(/already moved out/);
+    expect((await OPS.editEngagement(db, { firmId: f.id, engagementId: e.id, from: "2026-07-01", to: "" })).warnings).toEqual([expect.stringMatching(/runs past the Date of Exit \(01\/09\/2026\)/)]);
+    // odd exit dates are saved with a warning
+    const w2 = await workman(f.id, "999999999999");
+    expect((await OPS.deleteWorkman(db, { firmId: f.id, workmanId: w2.id, exitDate: "2999-01-01" })).warnings).toEqual([expect.stringMatching(/in the future/)]);
   });
-  it("WM-06 a date of exit before the current engagement started is refused", async () => {
-    const { f, w } = await base();
-    await rejects(OPS.updateWorkman(db, { firmId: f.id, workmanId: w.id, values: WORKMAN(undefined, { exitDate: "2026-06-15" }) }));
+  it("WM-06 the Edit form cannot set or clear the Date of Exit (only Move Out sets it, once)", async () => {
+    const f = await firm(1);
+    const w = await workman(f.id);
+    await OPS.updateWorkman(db, { firmId: f.id, workmanId: w.id, values: WORKMAN(undefined, { exitDate: "2026-08-15" }) });
+    expect((await snap(f.id)).workmen[0]).toMatchObject({ state: "inactive", exitDate: null });
+    await OPS.deleteWorkman(db, { firmId: f.id, workmanId: w.id, exitDate: "2026-08-15" });
+    await OPS.updateWorkman(db, { firmId: f.id, workmanId: w.id, values: WORKMAN(undefined, { exitDate: "", name: "Ramesh Chandra" }) });
+    expect((await snap(f.id)).workmen[0]).toMatchObject({ state: "moved", exitDate: "2026-08-15", fullName: "Ramesh Chandra Kumar" });
+    expect((await OPS.getWorkman(db, { firmId: f.id, workmanId: w.id })).values.details).not.toHaveProperty("exitDate");
   });
   it("WM-07 Bulk Accommodation updates only the ticked workmen of this firm", async () => {
     const a = await firm(1); const b = await firm(2);
@@ -306,11 +335,14 @@ describe("ENGAGEMENT — a workman is on at most one work order at any time", ()
     const again = (await snap(f.id)).engagements.find((e) => e.woNo === "GEMC-1");
     expect(again.to).toBe("2026-08-31");
   });
-  it("EN-08 correcting engagement dates keeps the same rules as engaging (order dates, date of joining)", async () => {
+  it("EN-08 correcting engagement dates warns like engaging does (order dates, date of joining) and saves", async () => {
     const { f } = await base();
     const e = (await snap(f.id)).engagements[0];
-    await rejects(OPS.editEngagement(db, { firmId: f.id, engagementId: e.id, from: "2026-05-01", to: "" }));   // before order start & joining
-    await rejects(OPS.editEngagement(db, { firmId: f.id, engagementId: e.id, from: "2026-07-01", to: "2027-12-31" }));   // after order end
+    const early = await OPS.editEngagement(db, { firmId: f.id, engagementId: e.id, from: "2026-05-01", to: "" });   // before order start & joining
+    expect(early.warnings).toEqual([expect.stringMatching(/before the Date of Joining/), expect.stringMatching(/outside the dates of GEMC-1/)]);
+    const late = await OPS.editEngagement(db, { firmId: f.id, engagementId: e.id, from: "2026-07-01", to: "2027-12-31" });   // after order end
+    expect(late.warnings).toEqual([expect.stringMatching(/outside the dates of GEMC-1/)]);
+    expect((await snap(f.id)).engagements[0]).toMatchObject({ from: "2026-07-01", to: "2027-12-31" });
   });
   it("EN-09 an engagement cannot be shortened so that saved wages fall outside it", async () => {
     const { f, wo, w } = await base();
@@ -326,16 +358,19 @@ describe("ENGAGEMENT — a workman is on at most one work order at any time", ()
     await rejects(OPS.endEngagement(db, { firmId: f.id, engagementId: e.id, to: "2026-10-30" }));
     const s = await snap(f.id);
     expect(s.engagements[0]).toMatchObject({ status: "Ended", to: "2026-09-30" });
-    expect(s.workmen[0]).toMatchObject({ status: "Inactive", engagedIn: "GEMC-1" });
+    expect(s.workmen[0]).toMatchObject({ status: "Inactive", engagedIn: null, engagedFrom: null });   // an ended engagement is history, not "Engaged in"
   });
-  it("EN-11 engagement outside the order dates or before joining is refused; one bad row saves nothing", async () => {
+  it("EN-11 engagement outside the order dates or before joining is saved with warnings; a row missing its date saves nothing", async () => {
     const f = await firm(1);
     const wo = await approvedOrder(f.id);
     const ok = await workman(f.id, "111111111111");
     const late = await workman(f.id, "222222222222", { doj: "2026-09-01" });
-    await rejects(engage(f.id, wo.id, ok.id, "2027-05-01"));
-    await rejects(OPS.engageWorkmen(db, { firmId: f.id, workOrderId: wo.id, rows: [{ workmanId: ok.id, from: "2026-07-01" }, { workmanId: late.id, from: "2026-07-01" }] }));
+    const third = await workman(f.id, "333333333333");
+    await rejects(OPS.engageWorkmen(db, { firmId: f.id, workOrderId: wo.id, rows: [{ workmanId: ok.id, from: "2026-07-01" }, { workmanId: third.id, from: "" }] }));
     expect((await snap(f.id)).engagements).toHaveLength(0);
+    const r = await OPS.engageWorkmen(db, { firmId: f.id, workOrderId: wo.id, rows: [{ workmanId: ok.id, from: "2027-05-01" }, { workmanId: late.id, from: "2026-07-01" }] });
+    expect(r.engaged).toBe(2);
+    expect(r.warnings).toEqual([expect.stringMatching(/^WM00001's engagement .* outside the dates of GEMC-1/), expect.stringMatching(/^WM00002's engagement on GEMC-1 starts on 01\/07\/2026, before the Date of Joining \(01\/09\/2026\)/)]);
   });
 });
 

@@ -295,11 +295,9 @@ export const dispatchRegister = pgTable("dispatch_register", {
   billNumber: varchar("bill_number", { length: 64 }).notNull(),
   billDate: date("bill_date").notNull(),
   taxableAmount: money("taxable_amount").notNull(),
-  taxRate: numeric("tax_rate", { precision: 5, scale: 2 }).notNull().default("0"),   // Tax Rate (%): 0 / 5 / 18 / other
-  taxAmount: money("tax_amount").notNull().default("0"),                              // calculated: taxable × tax rate
   gstRate: numeric("gst_rate", { precision: 5, scale: 2 }).notNull().default("0"),   // GST Rate (%): 0 / 5 / 18 / other
   gstAmount: money("gst_amount").notNull().default("0"),                              // calculated: taxable × GST rate
-  totalAmount: money("total_amount").notNull().default("0"),                          // taxable + tax + GST
+  totalAmount: money("total_amount").notNull().default("0"),                          // taxable + GST
   receivedAmount: money("received_amount"),
   receivedDate: date("received_date"),
   deduction: money("deduction").notNull().default("0"),
@@ -314,8 +312,8 @@ export const dispatchRegister = pgTable("dispatch_register", {
   updatedAt: updated(),
 }, (t) => [
   check("bill_amounts_non_negative", sql`${t.taxableAmount} >= 0 AND ${t.gstAmount} >= 0 AND ${t.deduction} >= 0`),
-  check("bill_tax_amounts_non_negative", sql`${t.taxAmount} >= 0 AND ${t.totalAmount} >= 0`),
-  check("bill_rates_percent", sql`${t.taxRate} BETWEEN 0 AND 100 AND ${t.gstRate} BETWEEN 0 AND 100`),
+  check("bill_total_non_negative", sql`${t.totalAmount} >= 0`),
+  check("bill_gst_rate_percent", sql`${t.gstRate} BETWEEN 0 AND 100`),
   check("received_date_with_amount", sql`${t.receivedAmount} IS NULL OR ${t.receivedDate} IS NOT NULL`),
   uniqueIndex("bill_number_per_firm").on(t.firmId, t.billNumber),
   index("dispatch_register_bill_date_idx").on(t.firmId, t.billDate),

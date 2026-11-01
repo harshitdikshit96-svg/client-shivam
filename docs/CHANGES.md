@@ -159,3 +159,53 @@ The downloads follow the client's sample formats exactly: headings character for
   - The every-button test now fails on any crash in a button's code and on any download that isn't an .xlsx.
   - New tests cover the firm switch (shimmer, and the out-of-order answer), the Engage and FORM A Excel files, and,
     in the browser, UI-12 (slow firm switch) and UI-13 (real .xlsx files).
+
+## CR-11 — 1 Nov 2026 (review feedback)
+- **Dispatch Register: GST only.** The Tax Rate drop-down and Tax Amount are gone: one **GST Rate** drop-down
+  (0% / 5% / 18% / Other) and **Total = Taxable + GST**. Migration `drizzle/0006_gst_only.sql` drops the two columns;
+  a bill already saved with a Tax Rate keeps its total (its tax is added into its GST rate and amount).
+- **Fixed: after Mark Completed a workman still showed "Engaged in" the completed order.** He had become inactive, but
+  "Engaged in" and "Engagement From" came from his latest engagement even after it ended. They now show only a current
+  engagement; the history stays on his page.
+- **Workman flow** (see README → Workman life cycle):
+  - **Engage Workmen** lists every available (not engaged) workman of the firm; it replaces **Inactive Workmen**,
+    which is removed from the menu. Its columns "Engagement From" and "Engaged in" are dropped (always empty there),
+    and so is the "Also show workmen engaged on other work orders" box: to move a workman, end his engagement first.
+  - **Active Workmen** has the same work order drop-down (top order first) and lists that order's workmen.
+  - **Move Out** (on each Engage row) and **Delete Workman (Move Out)** (on his page) ask for the Date of Exit and move
+    an available workman out of the firm, for good: he shows only under **Workmen Moved Out**, which has a Date of Exit
+    column and no way back. An engaged workman can't be moved out (no button; the server refuses too). Delete no longer
+    erases a workman.
+  - **Date of Exit** is no longer on the Edit Workman form: Move Out sets it once, and nothing clears it. An engagement of
+    a moved-out workman can't be edited past his exit date.
+  - A work order is completed only by **Mark Completed** (the Date of Completion stays a typed date).
+- **Tests:** the workman flow end to end (engage → Active; Mark Completed → available with blank columns; Move Out →
+  only Moved Out, no way back), the move-out rules on the server, GST-only bills, and browser tests UI-14 and UI-15.
+  An old test that expected "Inactive" + "Engaged in GEMC-1" was corrected.
+
+## CR-12 — 1 Nov 2026 (review feedback)
+- **Dates never trigger anything; every date is typed.**
+  - **Mark Completed** asks for the **last working day** of the order's workmen and ends their engagements on exactly
+    that day. It used to take today's date, or the Date of Completion if earlier. With no workmen engaged, it asks
+    for no date.
+  - **End Engagement** and **Move Out** no longer pre-fill today: the date box starts empty and the button stays off
+    until a date is typed.
+  - What remains date-based is checking only (e.g. an engagement must stay inside the order's dates).
+- **Dispatch Register = Taxable Amount → GST % → Total.** The GST Amount field (CR-7/CR-11) is gone from the form, and
+  the bill list shows Taxable Amount, GST % and Total Amount. Total = Taxable + Taxable × GST %. The GST amount is still
+  stored with the bill, but not shown. No migration.
+
+## CR-13 — 1 Nov 2026 (review feedback: "rather than stopping the user, just show the warning")
+- **A date that looks wrong is saved, with a warning.** The success message turns amber and lists each odd date
+  ("Saved, but please check this date: … You can correct it any time."). Was a refusal, now a warning:
+  - engagement before the Date of Joining, outside the work order's dates, or past the Date of Exit (engage, edit, end, Mark Completed);
+  - work order dates changed so engagements or wage months fall outside (a month already saved stays editable);
+  - Date of Birth not in the past, Date of Joining not after it, under 18 at joining, nominee's Date of Birth in the future;
+  - Date of Joining after an engagement started;
+  - Date of Exit in the future or before the last engagement ended;
+  - Received / Approval Date before the Bill Date;
+  - **submitting wages after the deadline day** (it used to block Submit).
+- The Engage list's date box no longer greys out days before the order start / Date of Joining.
+- **Still refused**, because the records would break: a missing date where one is needed, an engagement ending before it
+  starts, a workman on two orders on the same day, a change leaving paid wages outside an engagement, and a Date of Exit
+  before the Date of Joining (database rule; the exit date can't be edited afterwards).

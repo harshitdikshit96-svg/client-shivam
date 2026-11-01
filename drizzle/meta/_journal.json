@@ -43,6 +43,13 @@
       "when": 1793441643997,
       "tag": "0005_wage_cmps_fine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793545592046,
+      "tag": "0006_gst_only",
+      "breakpoints": true
     }
   ]
 }

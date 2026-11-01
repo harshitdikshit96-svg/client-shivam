@@ -166,12 +166,15 @@ test("create → read → update → delete every record type, with the links ch
   expect((await call("deleteEngagement", { engagementId: eng.id })).body.error).toMatch(/26 days of wages/);
   // … and succeed in the right order
   for (const [name, args] of [["deleteBill", { billId }], ["deleteWages", { sheetId }], ["deleteEngagement", { engagementId: eng.id }],
-    ["deleteWorkman", { workmanId: wmId }], ["deleteWorkOrder", { workOrderId: woId }], ["deleteFirm", {}]]) {
+    ["deleteWorkman", { workmanId: wmId, exitDate: "2026-10-31" }], ["deleteWorkOrder", { workOrderId: woId }]]) {
     const d = await call(name, args);
     expect(d.status, `${name}: ${d.body.error}`).toBe(200);
   }
-  data = await (await api.get("/api/data")).json();
-  expect(data.firms.map((f) => f.name)).not.toContain("API Test Firm Ltd");
+  // Delete Workman moves him out and keeps the record (CR-11), so the firm keeps him and cannot be deleted
+  data = await (await api.get(`/api/data?firm=${firmId}`)).json();
+  expect(data.workmen.map((w) => [w.wuin, w.state, w.exitDate])).toEqual([["WM00001", "moved", "2026-10-31"]]);
+  expect((await call("deleteWorkman", { workmanId: wmId, exitDate: "2026-10-31" })).body.error).toMatch(/already moved out/);
+  expect((await call("deleteFirm")).body.error).toMatch(/1 workman.*moved out are kept/);
 });
 
 test("firm isolation over HTTP: firm B's id cannot read or change firm A's records", async () => {

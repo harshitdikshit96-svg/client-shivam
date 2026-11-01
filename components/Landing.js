@@ -5,7 +5,7 @@ import { APP_TITLE } from "@/lib/schema";
 
 const FEATURES = [
   ["Work orders", "Every contract of every firm, with its wage Config, approval and status."],
-  ["Workmen", "Profiles, engagements on work orders, and who is active, inactive or moved out."],
+  ["Workmen", "Profiles, engagements on work orders, and who is active, available or moved out."],
   ["Wages", "Days worked in, wages, EPF and ESI out — calculated, submitted and approved by month."],
   ["Compliance", "Bills in the Dispatch Register with GST, EPF and ESIC payment status."],
 ];

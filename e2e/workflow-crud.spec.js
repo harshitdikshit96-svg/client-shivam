@@ -174,13 +174,20 @@ test("UI-05 New Workman → engaged on WF-WO-1: Active list, workman page and or
   await expect(main(page).getByRole("row").filter({ hasText: "WM00001" })).toContainText("Kishan");
 });
 
-test("UI-06 Moving to WF-WO-2: the first engagement ends the day before; he is never on two orders", async ({ page }) => {
+test("UI-06 Moving to WF-WO-2: end the first engagement, then he is available and engaged on WF-WO-2; never on two orders", async ({ page }) => {
   await open(page, FIRM_A);
   await newOrder(page, "WF-WO-2", "556");
   await go(page, "s=wm_engage");
   await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
-  await expect(main(page).getByLabel("New engagement from for WM00001")).toHaveCount(0);   // engaged on WF-WO-1: not in the free list
-  await main(page).getByLabel("Also show workmen engaged on other work orders (to move them)").check();
+  await expect(main(page).getByLabel("New engagement from for WM00001")).toHaveCount(0);   // engaged on WF-WO-1: not available (CR-11)
+  const before = (await data(page, FIRM_A)).workmen.find((x) => x.wuin === "WM00001");
+  await go(page, `s=wm_view&wm=${before.id}`);
+  await main(page).getByRole("row").filter({ hasText: "WF-WO-1" }).first().getByRole("button", { name: "End" }).click();
+  await page.getByRole("dialog").getByLabel("Last working day").fill("2026-08-15");
+  await page.getByRole("dialog").getByRole("button", { name: "End engagement" }).click();
+  await expect(notice(page)).toContainText("ended on 15/08/2026");
+  await go(page, "s=wm_engage");
+  await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
   await main(page).getByLabel("New engagement from for WM00001").fill("2026-08-16");
   await page.getByRole("button", { name: "Engage Selected" }).click();
   await expect(notice(page)).toContainText("engaged on WF-WO-2");
@@ -232,6 +239,7 @@ test("UI-08 Wage entry on WF-WO-2 is visible on the order page and the workman p
 
 test("UI-09 Edit Workman: the new name shows in the lists and the wage lines", async ({ page }) => {
   await open(page, FIRM_A, "s=wm_active");
+  await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
   await page.getByRole("button", { name: "WM00001" }).click();
   await page.getByRole("button", { name: "Edit Workman" }).click();
   await expect(main(page).getByLabel("Name", { exact: true }).first()).toHaveValue("Kishan");
@@ -239,6 +247,7 @@ test("UI-09 Edit Workman: the new name shows in the lists and the wage lines", a
   await page.getByRole("button", { name: "Update" }).click();
   await expect(notice(page)).toContainText("Workman WM00001 saved");
   await go(page, "s=wm_active");
+  await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");   // Active Workmen lists one work order's workmen (CR-11)
   await expect(main(page).getByRole("row").filter({ hasText: "WM00001" })).toContainText("Kishan Lal");
   const d = await data(page, FIRM_A);
   expect(d.sheets.find((s) => s.month === 9).lines[0].name).toMatch(/^Kishan Lal/);
@@ -277,6 +286,7 @@ test("UI-11 Switching to firm B shows none of firm A's records", async ({ page }
 
 test("UI-12 Switching firm on a slow connection: a loading shimmer, never the old firm's workmen", async ({ page }) => {
   await open(page, FIRM_A, "s=wm_active");
+  await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
   await expect(main(page)).toContainText("Kishan");
   const b = (await data(page, FIRM_B)).firm.id;
   // hold firm B's data for a moment, as a slow network would
@@ -308,4 +318,58 @@ test("UI-13 Every Excel download is a real .xlsx (Form D on Wage Entry and Engag
   await go(page, `s=wm_engage&wo=${wo.id}`);
   expect(await saved("Download Excel")).toBe("Wage-Statement-WF-WO-2-September-2026.xlsx");
   expect(await saved("FORM A")).toMatch(/^FORM-A-Register-of-Workmen-.*\.xlsx$/);
+});
+
+test("UI-14 Mark Completed frees the workman (back on Engage, off Active); Move Out puts him under Moved Out for good (CR-11)", async ({ page }) => {
+  await open(page, FIRM_A);
+  const wo = (await data(page, FIRM_A)).workOrders.find((o) => o.woNo === "WF-WO-2");
+  await go(page, `s=wo_view&wo=${wo.id}`);
+  await page.getByRole("button", { name: "Mark Completed" }).click();
+  const dlg = page.getByRole("dialog");
+  await expect(dlg.getByLabel("Last working day")).toHaveValue("");                       // dates are typed, never assumed
+  await expect(dlg.getByRole("button", { name: "Mark Completed" })).toBeDisabled();
+  await dlg.getByLabel("Last working day").fill("2026-10-31");
+  await dlg.getByRole("button", { name: "Mark Completed" }).click();
+  await expect(notice(page)).toContainText("marked completed");
+  await go(page, "s=wm_engage");
+  await expect(page.getByRole("navigation", { name: "Main menu" })).not.toContainText("Inactive");
+  const row = main(page).getByRole("row").filter({ hasText: "WM00001" });
+  await expect(row).toContainText("Kishan");
+  await expect(row).not.toContainText("WF-WO-2");                                      // the ended engagement is history
+  await expect(row.getByLabel("Select WM00001")).toBeVisible();
+  await go(page, "s=wm_active");
+  await expect(main(page)).not.toContainText("WM00001");
+  await go(page, "s=wm_engage");
+  await main(page).getByRole("row").filter({ hasText: "WM00001" }).getByRole("button", { name: "Move Out" }).click();
+  await page.getByRole("dialog").getByLabel("Date of Exit").fill("2026-10-31");
+  await page.getByRole("dialog").getByRole("button", { name: "Move Out" }).click();
+  await expect(notice(page)).toContainText("moved out on 31/10/2026");
+  await expect(main(page).getByRole("row").filter({ hasText: "WM00001" })).toHaveCount(0);   // gone from the list
+  await go(page, "s=wm_moved");
+  await expect(main(page).getByRole("row").filter({ hasText: "WM00001" })).toContainText("Kishan");
+  const d2 = await data(page, FIRM_A);
+  const w = d2.workmen.find((x) => x.wuin === "WM00001");
+  expect(w).toMatchObject({ state: "moved", engagedIn: null, exitDate: "2026-10-31" });
+  expect(d2.engagements.find((e) => e.woNo === "WF-WO-2").to).toBe("2026-10-31");        // exactly the typed last working day
+  await go(page, `s=wm_view&wm=${w.id}`);
+  await expect(page.getByRole("button", { name: "Engage on a Work Order" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Delete Workman/ })).toHaveCount(0);
+});
+
+test("UI-15 Dispatch Register: Taxable Amount → GST % → Total, nothing else (CR-11, CR-12)", async ({ page }) => {
+  await open(page, FIRM_A, "s=dispatch_register");
+  await page.getByRole("button", { name: "New Bill" }).click();
+  await expect(main(page).getByLabel("Tax Rate (%)")).toHaveCount(0);
+  await expect(main(page).getByLabel("GST Amount")).toHaveCount(0);
+  await fill(page, "Party Name / Contract Number", "NEC");
+  await fill(page, "Bill Number", "WF-B-2");
+  await fill(page, "Bill Date", "2026-10-01");
+  await fill(page, "Taxable Amount", "100000");
+  await main(page).getByLabel("GST Rate (%)", { exact: true }).selectOption("18");
+  await expect(main(page).getByLabel("Total Amount")).toHaveValue("1,18,000.00");
+  await page.getByRole("button", { name: /^(Add|Save) Bill$/ }).click();
+  await expect(notice(page)).toBeVisible();
+  const bill = (await data(page, FIRM_A)).bills.find((b) => b.billNo === "WF-B-2");
+  expect(bill).toMatchObject({ gst: 18000, total: 118000 });
+  expect(bill).not.toHaveProperty("tax");
 });
