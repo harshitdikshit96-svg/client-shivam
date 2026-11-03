@@ -182,6 +182,7 @@ describe("every typed field has a length limit on screen", () => {
   for (const id of ["create_firm", "wo_new", "wm_edit", "dispatch_register"]) {
     it(id, async () => {
       const { container } = await renderLive(id, {});
+      if (id === "dispatch_register") await userEvent.click(screen.getByRole("button", { name: "Add New Bill" }));   // the form opens on the button (CR-15)
       const typed = [...container.querySelectorAll("input[type=text]:not(.calc), textarea")];   // calculated amounts are not typed
       expect(typed.length).toBeGreaterThan(0);
       for (const el of typed) expect(el.maxLength, el.getAttribute("aria-label")).toBeGreaterThan(0);
@@ -308,13 +309,74 @@ describe("an empty database guides the user step by step", () => {
 });
 
 describe("Dispatch Register", () => {
+  const filter = () => screen.getAllByLabelText("Work Order")[0];   // the drop-down above the list; the form's is below
+  const billNos = () => screen.getAllByRole("row").slice(1).map((r) => r.querySelectorAll("td")[1]?.textContent).filter(Boolean);
   it("each bill row has Edit, which loads that bill into the form", async () => {
     await renderLive("dispatch_register");
+    await userEvent.click(screen.getByRole("button", { name: "View All Bills" }));
     const row = screen.getByText("DEMO-BILL-02").closest("tr");
     await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
     await waitFor(() => expect(screen.getByLabelText("Bill Number")).toHaveValue("DEMO-BILL-02"));
     expect(screen.getByRole("button", { name: "Save Bill" })).toBeInTheDocument();
-    expect(within(screen.getByLabelText("Work Order")).getByRole("option", { selected: true })).toHaveTextContent("DEMO-WO-002");
+    expect(within(screen.getAllByLabelText("Work Order")[1]).getByRole("option", { selected: true })).toHaveTextContent("DEMO-WO-002");
+  });
+  it("lists no bills until a work order is picked; then that order's bills (CR-14)", async () => {
+    const { data } = await renderLive("dispatch_register");
+    expect(filter()).toHaveValue("");
+    expect(within(filter()).getByRole("option", { selected: true })).toHaveTextContent("— select —");
+    expect(billNos()).toEqual([]);
+    expect(screen.getByText(/Select a work order above to see its bills, or press View All Bills/)).toBeInTheDocument();
+    for (const o of data.workOrders) {
+      await userEvent.selectOptions(filter(), String(o.id));
+      expect(billNos().sort(), o.woNo).toEqual(data.bills.filter((b) => b.workOrderId === o.id).map((b) => b.billNo).sort());
+    }
+  });
+  it("the drop-down holds only the work orders; every bill of the firm is listed only by View All Bills", async () => {
+    const { data } = await renderLive("dispatch_register");
+    expect(within(filter()).getAllByRole("option").map((o) => o.textContent)).toEqual(["— select —", ...data.workOrders.map((o) => `${o.woNo} — ${o.workName}`)]);
+    await userEvent.selectOptions(filter(), String(data.workOrders[0].id));
+    await userEvent.click(screen.getByRole("button", { name: "View All Bills" }));
+    expect(filter()).toHaveValue("");
+    expect(billNos().sort()).toEqual(data.bills.map((b) => b.billNo).sort());
+    expect(screen.getByText(new RegExp(`Bills of all work orders of`))).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(`Showing all ${data.bills.length} bills`);
+  });
+  it("the Bill Details form is closed until Add New Bill; it opens on the picked work order and Close Form shuts it (CR-15)", async () => {
+    const { data } = await renderLive("dispatch_register");
+    expect(screen.queryByLabelText("Bill Number")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Bill" })).toBeNull();
+    const o = data.workOrders.find((x) => data.bills.some((b) => b.workOrderId === x.id));
+    await userEvent.selectOptions(filter(), String(o.id));
+    await userEvent.click(screen.getByRole("button", { name: "Add New Bill" }));
+    expect(screen.getByLabelText("Bill Number")).toHaveValue("");
+    expect(screen.getAllByLabelText("Work Order")[1]).toHaveValue(String(o.id));
+    expect(screen.getByRole("button", { name: "Add Bill" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Close Form" }));
+    expect(screen.queryByLabelText("Bill Number")).toBeNull();
+    // Edit on a bill opens the form with that bill
+    const row = screen.getAllByRole("row").find((r) => r.textContent.includes(data.bills.find((b) => b.workOrderId === o.id).billNo));
+    await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
+    await waitFor(() => expect(screen.getByLabelText("Bill Number")).not.toHaveValue(""));
+    expect(screen.getByRole("button", { name: "Save Bill" })).toBeInTheDocument();
+  });
+  it("a bill saved before any work order is picked brings its work order's bills into view", async () => {
+    const { data } = await renderLive("dispatch_register");
+    const o = data.workOrders[0];
+    await userEvent.click(screen.getByRole("button", { name: "Add New Bill" }));
+    await userEvent.selectOptions(screen.getAllByLabelText("Work Order")[1], String(o.id));
+    await userEvent.type(screen.getByLabelText("Party Name / Contract Number"), "NEC");
+    await userEvent.type(screen.getByLabelText("Bill Number"), "CR15-B1");
+    await userEvent.type(screen.getByLabelText("Bill Date"), "2026-10-01");
+    await userEvent.type(screen.getByLabelText("Taxable Amount"), "1000");
+    await userEvent.click(screen.getByRole("button", { name: "Add Bill" }));
+    await waitFor(() => expect(filter()).toHaveValue(String(o.id)));
+    expect(billNos()).toContain("CR15-B1");
+  });
+  it("a bill opened from elsewhere (work order page, home) shows its own work order's bills", async () => {
+    const bill = (await firmSnapshot(t.db, ids.firms[0].id)).bills.find((b) => b.billNo === "DEMO-BILL-02");
+    await renderLive("dispatch_register", { bill: bill.id });
+    expect(filter()).toHaveValue(String(bill.workOrderId));
+    expect(billNos()).toContain("DEMO-BILL-02");
   });
 });
 
@@ -399,6 +461,7 @@ describe("Dispatch Register: one GST Rate drop-down, total calculated (CR-7, CR-
   const amount = (label) => screen.getByLabelText(label).value;
   it("there is no Tax Rate: picking 18% GST shows the GST and Taxable + GST as the total straight away", async () => {
     await renderLive("dispatch_register");
+    await userEvent.click(screen.getByRole("button", { name: "Add New Bill" }));
     expect(screen.queryByLabelText("Tax Rate (%)")).toBeNull();
     expect(screen.queryByLabelText("Tax Amount")).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Tax Amount" })).toBeNull();
@@ -410,6 +473,7 @@ describe("Dispatch Register: one GST Rate drop-down, total calculated (CR-7, CR-
   });
   it("'Other' opens a box for any rate, and the total follows it", async () => {
     await renderLive("dispatch_register");
+    await userEvent.click(screen.getByRole("button", { name: "Add New Bill" }));
     await userEvent.type(screen.getByLabelText("Taxable Amount"), "1000");
     expect(screen.queryByLabelText("GST Rate (%) — other rate")).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("GST Rate (%)"), "other");
@@ -421,6 +485,7 @@ describe("Dispatch Register: one GST Rate drop-down, total calculated (CR-7, CR-
   });
   it("the list shows Taxable, GST % and Total (no GST Amount); Edit on a bill with an unlisted GST rate opens it as Other", async () => {
     await renderLive("dispatch_register");
+    await userEvent.click(screen.getByRole("button", { name: "View All Bills" }));
     const heads = screen.getAllByRole("columnheader").map((h) => h.textContent);
     const at = (h) => heads.indexOf(h);
     expect(heads).not.toContain("GST Amount");

@@ -242,7 +242,7 @@ still be typed, so a missing district never blocks anyone.
   npm outdated
   npm install next@<version> react@<v> react-dom@<v>    # one group at a time
   npm audit --omit=dev                                  # production dependencies must stay at 0
-  npm test && npm run test:e2e                          # 389 + 33 must pass
+  npm test && npm run test:e2e                          # 394 + 33 must pass
   ```
 - `npm audit` (all dependencies) reports moderate esbuild advisories inside `drizzle-kit`. That's a development tool only, never deployed.
 - After upgrading Drizzle, run `npm run db:generate`. It should report **no changes**; if it writes a file, read it before committing.
@@ -276,7 +276,7 @@ Full steps in **`docs/DEPLOY.md`**. In short:
 ## 7. Tests
 | Command | What |
 |---|---|
-| `npm test` | all of the below except e2e (389 tests) |
+| `npm test` | all of the below except e2e (394 tests) |
 | `npm run test:unit` | wage maths, formats, districts, and **the screens vs the client's spec** |
 | `npm run test:db` | operations, integrity rules, sessions, schema, the full ERP CRUD plan, on in-memory PostgreSQL |
 | `npm run test:ui` | React screens in jsdom on the demo data. Includes **every button on every screen must do something**, screens vs raw SQL, error handling |

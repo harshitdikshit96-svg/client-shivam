@@ -209,3 +209,12 @@ The downloads follow the client's sample formats exactly: headings character for
 - **Still refused**, because the records would break: a missing date where one is needed, an engagement ending before it
   starts, a workman on two orders on the same day, a change leaving paid wages outside an engagement, and a Date of Exit
   before the Date of Joining (database rule; the exit date can't be edited afterwards).
+
+## CR-14 / CR-15 — 3 Nov 2026 (review feedback)
+- **Dispatch Register lists one work order's bills**, picked in a **Select Work Order** drop-down above the list (only
+  work orders in it, as on the other screens). **Nothing is listed until a work order is picked**; a bill or work order
+  opened from elsewhere (work order page, Home) shows that order's bills. Saving a bill against another order switches
+  the list to that order, so the bill stays in view.
+- **View All Bills** lists every bill of the firm. It is the only way to see them all; the drop-down has no "All".
+- **The Bill Details form is closed until Add New Bill** (or Edit on a bill) opens it. Add New Bill fills in the work
+  order picked above; **Close Form** shuts it without saving.

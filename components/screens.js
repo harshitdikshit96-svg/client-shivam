@@ -279,6 +279,26 @@ const woFilter = {
   set: (b, item, v, ctx) => ctx.setLocal({ wo: v, rowErrors: {} }),
 };
 
+/**
+ * Dispatch Register (CR-14): whose bills are listed — "all" (View All Bills; not an option in the drop-down), the work
+ * order picked, or the order of the bill / work order it was opened for. "" (nothing listed) until one is chosen.
+ */
+export function billWo(ctx) {
+  const opened = ctx.d.bills.find((x) => x.id === Number(ctx.params.bill));
+  const picked = ctx.local.billWo ?? (ctx.params.all ? "all" : ctx.params.wo ? String(ctx.params.wo) : opened ? String(opened.workOrderId ?? "all") : "");
+  if (picked === "all") return "all";
+  return orderById(ctx.d, picked) ? String(picked) : "";
+}
+const billOrder = (ctx) => (["", "all"].includes(billWo(ctx)) ? "" : billWo(ctx));
+// CR-15: the Bill Details form opens on Add New Bill / Edit (or a bill opened from elsewhere), and closes on Close Form
+const formOpen = (ctx) => Boolean(ctx.local.billOpen ?? ctx.local.billId ?? ctx.params.bill);
+const showForm = (ctx, local) => {
+  ctx.setLocal({ billOpen: true, ...local });
+  setTimeout(() => ctx.scrollTo("details"), 0);   // once the form is on the page
+};
+const woOptions = (ctx) => ctx.d.workOrders.map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` }));
+const newBill = (ctx) => ({ wo: billOrder(ctx), gstStatus: "Pending", epfStatus: "Pending", esicStatus: "Pending", approved: "No" });
+
 const workmenWord = (n) => `${n} workm${n === 1 ? "an" : "en"}`;
 
 async function saveGrid(ctx, { quiet = false } = {}) {
@@ -750,49 +770,77 @@ export const CONTROLLERS = {
   },
   dispatch_register: {
     guide: (ctx) => (!ctx.d.firm ? NO_FIRM : null),
-    scope: (ctx) => `Bills of ${ctx.d.firm?.name}. ${ctx.local.billId ?? ctx.params.bill ? "Editing the bill chosen above." : "Fill the form to add a new bill, or press Edit on a bill above."}`,
+    scope: (ctx) => {
+      const sel = billWo(ctx);
+      if (!sel) return "Select a work order to see its bills, or press View All Bills.";
+      const whose = sel === "all" ? `all work orders of ${ctx.d.firm?.name}` : orderById(ctx.d, sel)?.woNo;
+      return `Bills of ${whose}. ${ctx.local.billId ?? ctx.params.bill ? "Editing the bill chosen above." : "Press Add New Bill to enter a bill, or Edit on a bill above."}`;
+    },
+    hideBlock: (b, ctx) => (b === "details" || b === "actions") && !formOpen(ctx),
+    filter: {
+      get: (b, item, ctx) => billOrder(ctx),   // View All Bills leaves the drop-down on "— select —"
+      set: (b, item, v, ctx) => ctx.setLocal({ billWo: v }),
+    },
     load: async (ctx) => {
       const id = ctx.params.bill;
       if (id && ctx.d.bills.some((b) => b.id === Number(id))) {
         ctx.setLocal({ billId: Number(id) });
         return { details: tidyRates((await ctx.live.run("getBill", { billId: Number(id) }, { refresh: false })).details) };
       }
-      return { details: { wo: ctx.params.wo ? String(ctx.params.wo) : "", gstStatus: "Pending", epfStatus: "Pending", esicStatus: "Pending", approved: "No" } };
+      return { details: newBill(ctx) };
     },
-    rows: (b, ctx) => ctx.d.bills.map((x) => ({ ...x, current: x.id === (ctx.local.billId ?? Number(ctx.params.bill)) })),
-    empty: () => ({ text: "No bills yet. Fill the Bill Details form below and press Save Bill." }),
-    options: (b, item, ctx) => (item === "wo" ? ctx.d.workOrders.map((o) => ({ value: String(o.id), label: `${o.woNo} — ${o.workName}` })) : null),
+    rows: (b, ctx) => {
+      const sel = billWo(ctx);
+      if (!sel) return [];   // nothing until a work order (or -- All --) is picked
+      return ctx.d.bills.filter((x) => sel === "all" || String(x.workOrderId) === sel).map((x) => ({ ...x, current: x.id === (ctx.local.billId ?? Number(ctx.params.bill)) }));
+    },
+    empty: (b, ctx) => {
+      const sel = billWo(ctx);
+      if (!sel) return { text: "Select a work order above to see its bills, or press View All Bills to see every bill of the firm." };
+      if (sel === "all" || !ctx.d.bills.length) return { text: "No bills yet. Press Add New Bill to enter one." };
+      return { text: `No bills for ${orderById(ctx.d, sel)?.woNo} yet. Press Add New Bill to enter one, or View All Bills to see the firm's other bills.` };
+    },
+    options: (b, item, ctx) => (item === "wo" ? woOptions(ctx) : null),
     row: (b, item, row, ctx) => async () => {
       // already in the form (e.g. just added): reloading it could overwrite what is being typed
       if (ctx.local.billId !== row.id) {
         const v = await ctx.live.run("getBill", { billId: row.id }, { refresh: false });
         ctx.setValues({ details: tidyRates(v.details) });
-        ctx.setLocal({ billId: row.id });
       }
+      showForm(ctx, { billId: row.id });
       info(ctx, `Editing bill ${row.billNo}. Change the fields below and press Save Bill.`);
-      ctx.scrollTo("details");
     },
     label: (b, item, ctx) => (b === "actions" && item === "edit" ? (ctx.local.billId ? "Save Bill" : "Add Bill") : null),
     hide: (b, item, ctx) => b === "actions" && item === "delete" && !ctx.local.billId,
     action: (b, item, ctx) => {
+      if (item === "add" || item === "new") return () => {
+        ctx.setValues({ details: newBill(ctx) });
+        showForm(ctx, { billId: null });
+        info(ctx, `${item === "add" ? "Bill Details form opened" : "Form cleared"} for a new bill${billOrder(ctx) ? ` on ${orderById(ctx.d, billOrder(ctx)).woNo}` : ""}. Fill it in and press Add Bill.`);
+      };
+      if (item === "close") return () => {
+        ctx.setLocal({ billOpen: false, billId: null });
+        ctx.setValues({ details: newBill(ctx) });
+        info(ctx, "Bill Details form closed. Nothing more was saved.");
+      };
+      if (b === "select" && item === "all") return () => {
+        ctx.setLocal({ billWo: "all" });
+        info(ctx, `Showing all ${ctx.d.bills.length} bill${ctx.d.bills.length === 1 ? "" : "s"} of ${ctx.d.firm?.name}. Pick a work order above to see only its bills.`);
+      };
       if (item === "delete") return () => {
         const bill = ctx.d.bills.find((x) => x.id === ctx.local.billId);
         return confirmDelete(ctx, {
           title: `Delete bill ${bill?.billNo}?`, body: "The bill and its payment status are removed from the Dispatch Register.",
           op: "deleteBill", args: { billId: ctx.local.billId }, done: (r) => `Bill ${r.billNumber} deleted.`,
-          then: () => { ctx.setLocal({ billId: null }); ctx.setValues({ details: { gstStatus: "Pending", epfStatus: "Pending", esicStatus: "Pending", approved: "No" } }); },
+          then: () => { ctx.setLocal({ billId: null, billOpen: false }); ctx.setValues({ details: newBill(ctx) }); },
         });
-      };
-      if (item === "new") return () => {
-        ctx.setLocal({ billId: null });
-        ctx.setValues({ details: { gstStatus: "Pending", epfStatus: "Pending", esicStatus: "Pending", approved: "No" } });
-        info(ctx, "Form cleared for a new bill.");
-        ctx.scrollTo("details");
       };
       return async () => {
         const billId = ctx.local.billId ?? null;
         const r = await ctx.live.run("saveBill", { billId, values: ctx.values });
-        ctx.setLocal({ billId: r.id });
+        // a bill saved against another work order (or before any was picked): show that order's bills, so it stays in view
+        const sel = billWo(ctx);
+        ctx.setLocal({ billId: r.id, ...(sel !== "all" && String(r.workOrderId ?? "all") !== sel ? { billWo: String(r.workOrderId ?? "all") } : {}) });
         toast(ctx, `Bill ${r.billNumber} ${billId ? "saved" : "added"}.`);
       };
     },

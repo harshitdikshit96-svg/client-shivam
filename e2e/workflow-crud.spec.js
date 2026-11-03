@@ -255,15 +255,32 @@ test("UI-09 Edit Workman: the new name shows in the lists and the wage lines", a
 
 test("UI-10 Dispatch Register: a new bill is listed with its order, then edited", async ({ page }) => {
   await open(page, FIRM_A, "s=dispatch_register");
-  await page.getByRole("button", { name: "New Bill" }).click();
-  await pick(main(page).getByLabel("Work Order", { exact: true }), "WF-WO-2");
+  // nothing is listed and the form is closed until a work order is picked / Add New Bill is pressed (CR-14, CR-15)
+  await expect(main(page).getByLabel("Work Order", { exact: true }).first().locator("option:checked")).toHaveText("— select —");
+  await expect(main(page)).toContainText("Select a work order above to see its bills");
+  await expect(main(page).getByLabel("Bill Number", { exact: true })).toHaveCount(0);
+  // nothing is listed and the form is closed until a work order is picked / Add New Bill is pressed (CR-14, CR-15)
+  await expect(main(page).getByLabel("Work Order", { exact: true }).first().locator("option:checked")).toHaveText("— select —");
+  await expect(main(page)).toContainText("Select a work order above to see its bills");
+  await expect(main(page).getByLabel("Bill Number", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add New Bill" }).click();   // the form opens on this button (CR-15)
+  await pick(main(page).getByLabel("Work Order", { exact: true }).nth(1), "WF-WO-2");   // [0] is the list's drop-down (CR-14)
   await fill(page, "Party Name / Contract Number", "NEC");
   await fill(page, "Bill Number", "WF-B-1");
   await fill(page, "Bill Date", "2026-10-01");
   await fill(page, "Taxable Amount", "50000");
   await page.getByRole("button", { name: /^(Add|Save) Bill$/ }).click();
   await expect(notice(page)).toBeVisible();
+  // the list follows the bill to WF-WO-2's bills; WF-WO-1 has none; View All Bills shows it again
+  const filter = main(page).getByLabel("Work Order", { exact: true }).first();
+  await expect(filter.locator("option:checked")).toHaveText(/^WF-WO-2/);
   const row = main(page).getByRole("row").filter({ hasText: "WF-B-1" });
+  await expect(row).toContainText("WF-WO-2");
+  await pick(filter, "WF-WO-1");
+  await expect(row).toHaveCount(0);
+  await expect(filter.locator("option", { hasText: "All" })).toHaveCount(0);   // only work orders in the drop-down
+  await page.getByRole("button", { name: "View All Bills" }).click();
+  await expect(main(page)).toContainText("Bills of all work orders");
   await expect(row).toContainText("WF-WO-2");
   await row.getByRole("button", { name: "Edit" }).click();
   await expect(main(page).getByLabel("Bill Number", { exact: true })).toHaveValue("WF-B-1");
@@ -358,7 +375,7 @@ test("UI-14 Mark Completed frees the workman (back on Engage, off Active); Move 
 
 test("UI-15 Dispatch Register: Taxable Amount → GST % → Total, nothing else (CR-11, CR-12)", async ({ page }) => {
   await open(page, FIRM_A, "s=dispatch_register");
-  await page.getByRole("button", { name: "New Bill" }).click();
+  await page.getByRole("button", { name: "Add New Bill" }).click();   // the form opens on this button (CR-15)
   await expect(main(page).getByLabel("Tax Rate (%)")).toHaveCount(0);
   await expect(main(page).getByLabel("GST Amount")).toHaveCount(0);
   await fill(page, "Party Name / Contract Number", "NEC");
