@@ -13,7 +13,7 @@ const notice = (page) => page.locator(".notice");
 const main = (page) => page.getByRole("main");
 
 async function login(page) {
-  await page.goto("/");
+  await page.goto("/admin");
   const menu = page.getByRole("navigation", { name: "Main menu" });
   await expect(page.getByLabel("Username").or(menu)).toBeVisible();
   if (await menu.isVisible()) return;
@@ -44,10 +44,10 @@ async function open(page, firm, hash = "") {
 /** Open a screen by its hash and wait until it is the one showing. */
 async function go(page, hash) {
   const screen = new URLSearchParams(hash).get("s");
-  await page.goto(`/#${hash}`);
+  await page.goto(`/admin#${hash}`);
   await page.waitForLoadState("networkidle");
   // a firm switch can still send the app back to Home: open the screen again if so
-  if (!page.url().includes(`s=${screen}`)) await page.goto(`/#${hash}`);
+  if (!page.url().includes(`s=${screen}`)) await page.goto(`/admin#${hash}`);
   await expect(page).toHaveURL(new RegExp(`s=${screen}`));
 }
 

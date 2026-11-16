@@ -1,5 +1,7 @@
 // Wipe ALL data and rebuild empty tables from the migrations.
 //   npm run db:reset -- --yes          (refuses without --yes; refuses in production without --force)
+//   … --migrations <folder>            rebuild from another migrations folder, e.g. the deployed commit's
+//                                      (git archive HEAD drizzle | tar -x -C /tmp/head), so the live code still matches
 import { sql } from "drizzle-orm";
 import { getDb } from "../db/index.js";
 
@@ -18,7 +20,8 @@ await db.execute(sql`CREATE SCHEMA public`);
 const { migrate } = /^postgres/.test(process.env.DATABASE_URL ?? "")
   ? await import("drizzle-orm/node-postgres/migrator")
   : await import("drizzle-orm/pglite/migrator");
-await migrate(db, { migrationsFolder: "./drizzle" });
+const at = process.argv.indexOf("--migrations");
+await migrate(db, { migrationsFolder: at > 0 ? process.argv[at + 1] : "./drizzle" });
 const { rows } = await db.execute(sql`SELECT count(*)::int AS n FROM firms`);
 console.log(`Database reset: tables rebuilt, ${rows?.[0]?.n ?? 0} firms. Run npm run db:seed to create the login again.`);
 process.exit(0);

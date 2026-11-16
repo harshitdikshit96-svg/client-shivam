@@ -55,16 +55,43 @@ Never run `db:demo` or `db:reset` against it.
 
 ## 4. Release
 ```bash
-npm test && npm run test:e2e          # 394 + 33 must pass
+npm test && npm run test:e2e          # 407 + 33 must pass
 git push origin main                  # Vercel builds and deploys main to Production
 ```
 Then on the live site: log in, create a firm, a work order (approve it), a workman, engage, enter a month's wages,
 and download one Excel file. **Logout** returns to the landing page.
 
 ## 5. After going live
-- **Backups:** Neon keeps a restore window (point-in-time restore); its length depends on the Neon plan, so check it.
-  For a monthly copy you keep: `pg_dump "$DATABASE_URL_UNPOOLED" > backup-YYYY-MM.sql`.
+- **Daily backups (21 days):** set up once, see section 6. Neon's own point-in-time restore is a second safety net
+  (its window depends on the Neon plan).
 - **Change the password:** in the app, under Reset Password. If it is forgotten, run `npm run db:login` with the production addresses as in step 2.
 - **Logs:** Vercel → Deployments → Logs (Runtime). A missing `DATABASE_URL` shows as
   "DATABASE_URL is not set to a postgres:// address".
 - The wrong-password counter lives in each server instance's memory and resets when the instance restarts.
+
+## 6. Daily backups (one-time setup)
+Every night at 02:00 India time, Vercel Cron calls `/api/cron/backup` (`vercel.json` → `crons`). That saves the whole
+database as `backups/erp-YYYY-MM-DD.json` in a **private** Vercel Blob store, and deletes the oldest file once there are
+more than 21. The files hold Aadhaar and bank details, so the store must be **private**. The old prototype store is
+public and must not be used.
+1. **Vercel → Storage → Create → Blob**, access **Private**, name e.g. `erp-backups`, same region as the functions.
+   **Connect** it to this project for **Production**, with the environment variable prefix **`BACKUP`**. That creates
+   `BACKUP_BLOB_READ_WRITE_TOKEN`, which the app reads. Without the prefix it would be `BLOB_READ_WRITE_TOKEN`, which the
+   app does not use for backups.
+2. **Settings → Environment Variables (Production):** add `CRON_SECRET` = a long random value (e.g. `openssl rand -hex 32`).
+   Vercel sends it with each cron call; without it the route refuses to run.
+3. Redeploy (Deployments → ⋯ → Redeploy) so both values reach the functions.
+4. Check: **Settings → Cron Jobs** lists `/api/cron/backup`. Press **Run** once, then look in the Blob store for today's
+   file. Logs show `backup erp-…json: … bytes`.
+
+**Retrieve / restore** from a computer with the repo: put `BACKUP_BLOB_READ_WRITE_TOKEN` (copy it from the store's
+`.env.local` tab) in `.env.neon` next to `DATABASE_URL`, then:
+```bash
+node --env-file=.env.neon scripts/db-backup.mjs --list                        # the 21 days kept
+node --env-file=.env.neon scripts/db-backup.mjs --download 2026-11-15         # → erp-2026-11-15.json (keep it private)
+node --env-file=.env.neon scripts/db-backup.mjs --restore 2026-11-15 --yes    # replace ALL live data with that day
+node --env-file=.env.neon scripts/db-backup.mjs                               # take a backup now
+```
+A restore runs in one transaction (all or nothing). It refuses a backup from a different database version, and it logs
+everyone out. A file can also be downloaded from the Blob store in the Vercel dashboard and restored with
+`--restore-file file.json --yes`.

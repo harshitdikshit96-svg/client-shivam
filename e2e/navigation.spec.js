@@ -10,19 +10,19 @@ let password = "e2e-password-1";   // changed by the Reset Password test
 
 /** Every test starts logged out (fresh browser); log in, then open the screen. */
 async function open(page, hash = "") {
-  await page.goto("/");
+  await page.goto("/admin");
   const menu = page.getByRole("navigation", { name: "Main menu" });
   await expect(page.getByLabel("Username").or(menu)).toBeVisible();
-  if (await menu.isVisible()) { if (hash) await page.goto(`/#${hash}`); return; }   // still logged in
+  if (await menu.isVisible()) { if (hash) await page.goto(`/admin#${hash}`); return; }   // still logged in
   await page.getByLabel("Username").fill(USER);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByRole("navigation", { name: "Main menu" })).toBeVisible();
-  if (hash) await page.goto(`/#${hash}`);
+  if (hash) await page.goto(`/admin#${hash}`);
 }
 
 test("logged out: full-screen home page with the login; a wrong password is refused", async ({ page }) => {
-  await page.goto("/#s=wo_ongoing");   // a deep link while logged out still shows the login
+  await page.goto("/admin#s=wo_ongoing");   // a deep link while logged out still shows the login
   await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main menu" })).toHaveCount(0);
   const r = await page.request.get("/api/data");

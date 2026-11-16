@@ -28,6 +28,7 @@ Or use the login from `.env.local` (scripts don't read that file by themselves):
 ```bash
 npm run db:demo              # 2 demo firms, 7 work orders, 11 workmen, May–Sep wages, 4 bills; prints 20 PASS/FAIL checks
 npm run db:reset -- --yes && node --env-file=.env.local scripts/db-login.mjs   # empty database + the login again
+npm run db:backup             # back up now (local: .data/backups; --list, --download DAY, --restore DAY --yes; docs/DEPLOY.md §6)
 ```
 - Stop `npm run dev` before `db:reset` / `db:migrate`. The local database is a folder that only one process can open.
 - `db:demo` fills every screen; demo firms have a `DEMO-` CUIN. Re-running it replaces the demo data. It refuses if a real firm exists.
@@ -242,7 +243,7 @@ still be typed, so a missing district never blocks anyone.
   npm outdated
   npm install next@<version> react@<v> react-dom@<v>    # one group at a time
   npm audit --omit=dev                                  # production dependencies must stay at 0
-  npm test && npm run test:e2e                          # 394 + 33 must pass
+  npm test && npm run test:e2e                          # 407 + 33 must pass
   ```
 - `npm audit` (all dependencies) reports moderate esbuild advisories inside `drizzle-kit`. That's a development tool only, never deployed.
 - After upgrading Drizzle, run `npm run db:generate`. It should report **no changes**; if it writes a file, read it before committing.
@@ -273,10 +274,13 @@ Full steps in **`docs/DEPLOY.md`**. In short:
 
 ---
 
+Daily backups on Vercel (02:00 IST, 21 days kept, private Blob store): `lib/backup.js`, `lib/backup-store.js`,
+`/api/cron/backup`. Set up once as in docs/DEPLOY.md §6.
+
 ## 7. Tests
 | Command | What |
 |---|---|
-| `npm test` | all of the below except e2e (394 tests) |
+| `npm test` | all of the below except e2e (407 tests) |
 | `npm run test:unit` | wage maths, formats, districts, and **the screens vs the client's spec** |
 | `npm run test:db` | operations, integrity rules, sessions, schema, the full ERP CRUD plan, on in-memory PostgreSQL |
 | `npm run test:ui` | React screens in jsdom on the demo data. Includes **every button on every screen must do something**, screens vs raw SQL, error handling |
