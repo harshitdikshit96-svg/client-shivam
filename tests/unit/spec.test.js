@@ -68,6 +68,7 @@ const CR2_MENU = (menu) => {
   wages.items = [...wages.items, { label: "Submitted Wages" }, { label: "Approved Wages" }, { label: "Worker Wage Slip" }];
   const workmen = m.find((g) => g.label === "Workmen");
   workmen.items = workmen.items.filter((i) => i.label !== "Workmen Photo" && i.label !== "View Inactive Workmen");   // CR-6, CR-11
+  m.splice(m.findIndex((g) => g.label === "Logout"), 0, { label: "Website", items: [{ label: "Partners" }] });   // CR-16
   return m;
 };
 
@@ -189,7 +190,7 @@ describe("CR-3: everything editable, every typed field validated", () => {
   });
   it("every typed field of every form has a known format (length + pattern)", () => {
     for (const [id, b] of forms) {
-      for (const it of b.items.filter((x) => !["select", "file", "button"].includes(x.input) && !x.calc)) {   // calculated fields are not typed
+      for (const it of b.items.filter((x) => !["select", "file", "image", "button"].includes(x.input) && !x.calc)) {   // calculated fields are not typed
         expect(FORMATS[it.format], `${id} › ${b.title} › ${it.label} has no format`).toBeDefined();
       }
     }

@@ -44,6 +44,24 @@ describe("website", () => {
     render(<ContactPage />);
     screen.getByRole("button", { name: "Send an Enquiry" }).click();
     expect(await screen.findByRole("status")).toHaveTextContent("Your details have been submitted successfully.");
-    expect(screen.getAllByRole("link", { name: "contact@shivanjigroup.in" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "secureeyelko@gmail.com" }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("website partners (CR-16)", () => {
+  it("/partners shows the partners from the portal as tiles, and nothing extra when there are none", async () => {
+    const data = await import("@/lib/data");
+    const spy = vi.spyOn(data, "partnerRows");
+    const { default: PartnersPage } = await import("@/app/(site)/partners/page");
+    spy.mockResolvedValue([{ id: 1, name: "Acme Infra", description: "Site security.", cost: 125000, logo: "/api/partner-logo/1?v=1" }]);
+    const { unmount } = render(await PartnersPage());
+    expect(screen.getByRole("heading", { name: "Our Partners" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Acme Infra logo" })).toHaveAttribute("src", "/api/partner-logo/1?v=1");
+    expect(screen.getByText("₹1,25,000")).toBeInTheDocument();
+    unmount();
+    spy.mockResolvedValue([]);
+    render(await PartnersPage());
+    expect(screen.queryByRole("heading", { name: "Our Partners" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Partner With Us" })).toBeInTheDocument();
   });
 });

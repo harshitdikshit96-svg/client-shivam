@@ -390,3 +390,26 @@ test("UI-15 Dispatch Register: Taxable Amount → GST % → Total, nothing else 
   expect(bill).toMatchObject({ gst: 18000, total: 118000 });
   expect(bill).not.toHaveProperty("tax");
 });
+
+test("UI-16 Website → Partners: a partner with its logo, added in the portal, shows as a tile on /partners (CR-16)", async ({ page }) => {
+  await open(page, null, "s=partners");
+  await expect(main(page).getByLabel("Name of the Partner")).toHaveCount(0);   // the form opens on Add New Partner
+  await page.getByRole("button", { name: "Add New Partner" }).click();
+  await fill(page, "Name of the Partner", "Acme E2E Partners");
+  // a 2×2 red PNG picked as the logo: the browser shrinks it and shows a preview
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGP4z8DAwMDAxMDAAAAeAwH/5mXP0AAAAABJRU5ErkJggg==", "base64");
+  await main(page).getByLabel("Logo", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: png });
+  await expect(main(page).getByRole("img", { name: "Logo preview" })).toBeVisible();
+  await fill(page, "Description of Work", "Security staffing for the e2e plant.");
+  await fill(page, "Cost (₹)", "250000");
+  await page.getByRole("button", { name: "Add Partner" }).click();
+  await expect(notice(page)).toContainText('Partner "Acme E2E Partners" added');
+  await expect(main(page).getByRole("img", { name: "Acme E2E Partners logo" })).toBeVisible();
+
+  await page.goto("/partners");
+  const tile = page.locator(".hp-ptile", { hasText: "Acme E2E Partners" });
+  await expect(tile).toContainText("Security staffing for the e2e plant.");
+  await expect(tile).toContainText("₹2,50,000");
+  const logo = tile.getByRole("img", { name: "Acme E2E Partners logo" });
+  await expect.poll(() => logo.evaluate((i) => i.complete && i.naturalWidth)).toBeGreaterThan(0);   // the logo really loads
+});

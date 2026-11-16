@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <PageHero trail={[["/disclaimer", "Disclaimer"]]} title="Disclaimer" />
-      <Section narrow>
+      <Section>
         <div className="hp-prose">
           {DISCLAIMER.map((t) => <p key={t}>{t}</p>)}
           

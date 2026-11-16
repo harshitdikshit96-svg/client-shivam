@@ -30,10 +30,10 @@ export function PageHero({ trail, title, lead, children }) {
 }
 
 /** A section with a heading row: title on the left, optional text on the right. */
-export function Section({ id, title, sub, tone, children, narrow }) {
+export function Section({ id, title, sub, tone, children }) {
   return (
     <section className={`hp-sec ${tone ? `hp-${tone}` : ""}`} id={id}>
-      <div className={`hp-wrap ${narrow ? "hp-narrow" : ""}`}>
+      <div className="hp-wrap">
         {title && (
           <div className="hp-sec-head">
             <h2 className="hp-h2">{title}</h2>

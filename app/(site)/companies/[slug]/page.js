@@ -45,7 +45,7 @@ export default async function CompanyPage({ params }) {
       </section>
       <section className="hp-sec hp-co-end">
         <div className="hp-wrap">
-          <div className="hp-ctas hp-center-row"><Btn href={enquire}>{c.cta}</Btn></div>
+          <div className="hp-ctas"><Btn href={enquire}>{c.cta}</Btn></div>
           <h2 className="hp-h3">Our Companies</h2>
           <nav className="hp-co-others" aria-label="Our other companies">
             {COMPANIES.filter((o) => o.slug !== c.slug).map((o) => (

@@ -845,6 +845,50 @@ export const CONTROLLERS = {
       };
     },
   },
+  // CR-16: Website → Partners. Same list → form pattern as the Dispatch Register; not tied to a firm.
+  partners: {
+    scope: (ctx) => (ctx.local.partnerId ? "Editing the partner chosen above. Changes show on the website's Partners page once saved."
+      : "Partners are shown as tiles on the website's Partners page (/partners). Press Add New Partner to add one."),
+    hideBlock: (b, ctx) => (b === "details" || b === "actions") && !ctx.local.partnerOpen,
+    load: () => ({ details: {} }),
+    rows: (b, ctx) => (ctx.d.partners ?? []).map((p) => ({ ...p, current: p.id === ctx.local.partnerId })),
+    empty: () => ({ text: "No partners yet. Press Add New Partner to add the first one." }),
+    row: (b, item, row, ctx) => async () => {
+      if (ctx.local.partnerId !== row.id) ctx.setValues(await ctx.live.run("getPartner", { partnerId: row.id }, { refresh: false }));
+      ctx.setLocal({ partnerOpen: true, partnerId: row.id });
+      setTimeout(() => ctx.scrollTo("details"), 0);
+      info(ctx, `Editing ${row.name}. Change the fields below and press Save Partner.`);
+    },
+    label: (b, item, ctx) => (b === "actions" && item === "save" ? (ctx.local.partnerId ? "Save Partner" : "Add Partner") : null),
+    hide: (b, item, ctx) => b === "actions" && item === "delete" && !ctx.local.partnerId,
+    action: (b, item, ctx) => {
+      if (item === "add") return () => {
+        ctx.setValues({ details: {} });
+        ctx.setLocal({ partnerOpen: true, partnerId: null });
+        setTimeout(() => ctx.scrollTo("details"), 0);
+        info(ctx, "Partner Details form opened. Fill it in and press Add Partner.");
+      };
+      if (item === "close") return () => {
+        ctx.setLocal({ partnerOpen: false, partnerId: null });
+        ctx.setValues({ details: {} });
+        info(ctx, "Partner Details form closed. Nothing more was saved.");
+      };
+      if (item === "delete") return () => {
+        const p = ctx.d.partners.find((x) => x.id === ctx.local.partnerId);
+        return confirmDelete(ctx, {
+          title: `Delete partner "${p?.name}"?`, body: "The partner and its logo are removed from the portal and from the website.",
+          op: "deletePartner", args: { partnerId: ctx.local.partnerId }, done: (r) => `Partner "${r.name}" deleted.`,
+          then: () => { ctx.setLocal({ partnerId: null, partnerOpen: false }); ctx.setValues({ details: {} }); },
+        });
+      };
+      return async () => {
+        const partnerId = ctx.local.partnerId ?? null;
+        const r = await ctx.live.run("savePartner", { partnerId, values: ctx.values });
+        ctx.setLocal({ partnerId: r.id });
+        toast(ctx, `Partner "${r.name}" ${partnerId ? "saved" : "added"}. It now shows on the website's Partners page.`);
+      };
+    },
+  },
   reset_pw: {
     action: (b, item, ctx) => async () => {
       const r = await ctx.live.run("resetPassword", { values: ctx.values }, { refresh: false });

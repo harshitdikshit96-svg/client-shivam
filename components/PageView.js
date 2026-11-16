@@ -15,12 +15,13 @@ import { sanitize, checkValue, inputProps, FORMATS } from "@/lib/validate";
 import { useData, fmtDate, fmtMoney, MONTHS as MONTH_LABELS } from "./Data";
 import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine, printDoc, engageWoId } from "./screens";
 import { PrintOverlay, FormD, WageSlip } from "./Forms";
+import ImageInput from "./ImageInput";
 
 // ctx for the live screen (null without live data)
 const PageCtx = createContext(null);
 const usePage = () => useContext(PageCtx);
 
-const MONEY_COLS = new Set(["taxable", "gst", "total", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "cmps", "esi", "fine", "otherDed", "damage"]);
+const MONEY_COLS = new Set(["taxable", "gst", "total", "received", "deduction", "gross", "totalDed", "net", "basic", "vda", "basicPay", "ot", "ug", "bonus", "edlis", "pli", "otherEarn", "epf", "cmps", "esi", "fine", "otherDed", "damage", "cost"]);
 const fmtValue = (id, v) => (v == null || v === "" ? null : typeof v === "number" && MONEY_COLS.has(id) ? fmtMoney(v)
   : id === "gstRate" && typeof v === "number" ? `${v}%` : fmtDate(v));
 
@@ -432,6 +433,7 @@ function DataRow({ row, index, list, block }) {
           if (it.id === "sl") return <td key={it.id} className={hidden}>{index + 1}</td>;
           if (engage && it.id === "select") return <td key={it.id} className={hidden}><EngageTick row={row} /></td>;
           if (engage && it.id === "newFrom") return <td key={it.id} className={hidden}><EngageFrom row={row} /></td>;
+          if (it.id === "logo") return <td key={it.id} className={hidden}>{row.logo ? <img src={row.logo} alt={`${row.name} logo`} className="logo-cell" /> : "—"}</td>;
           const shown = fmtValue(it.id, row[it.id]);
           const link = shown != null && linkFor(it.id, row, ctx);
           return (
@@ -589,6 +591,7 @@ function Control({ it, block, live }) {
       case "checkbox": return <input type="checkbox" disabled={ro} />;
       case "rate": return <select disabled={ro} defaultValue="">{[<option key="" value="" />, ...(it.options || []).map((o) => <option key={o} value={o}>{o}%</option>), <option key="other" value="other">Other</option>]}</select>;
       case "file": return <input type="file" disabled={ro} />;
+      case "image": return <input type="file" accept="image/*" disabled={ro} />;
       case "password": return <input type="password" autoComplete="off" readOnly={ro} />;
       case "button": return null;
       case "number": return <input type="number" min="0" step="any" readOnly={ro} defaultValue={it.def ?? undefined} />;
@@ -624,6 +627,9 @@ function Control({ it, block, live }) {
     case "date": return <input type="date" readOnly={ro} value={value} onChange={set} min="1900-01-01" max="2100-12-31" {...common} />;
     case "file":
       return <input type="file" disabled={ro} {...common} onChange={(e) => { e.target.value = ""; ctx.live.notify("info", "Uploading documents is not part of this version yet. The work order is saved without the file."); }} />;
+    case "image":
+      return <ImageInput value={value} readOnly={ro} label={it.label} invalid={!!err} onChange={(v) => { ctx.setValue(block.id, it.id, v); ctx.setError(key, null); }}
+        onError={(m) => ctx.setError(key, m)} />;
     case "password": return <input type="password" autoComplete="new-password" readOnly={ro} value={value} onChange={set} {...fmt} {...common} />;
     case "button": return null;
     // numbers are typed as text so letters, "e" and minus signs cannot get in; inputMode brings up the number pad

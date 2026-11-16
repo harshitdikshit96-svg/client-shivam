@@ -318,3 +318,19 @@ export const dispatchRegister = pgTable("dispatch_register", {
   uniqueIndex("bill_number_per_firm").on(t.firmId, t.billNumber),
   index("dispatch_register_bill_date_idx").on(t.firmId, t.billDate),
 ]);
+
+// ---------- Website → Partners (CR-16: shown as tiles on the public /partners page) ----------
+// Group-wide, not per firm. The logo is a small image (resized in the browser) kept as a data: URL and served by
+// /api/partner-logo/[id], so no file storage is needed.
+export const partners = pgTable("partners", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),                                       // Name of the Partner *
+  logo: text("logo"),                                                 // Logo (data:image/png|jpeg|webp;base64,…)
+  description: text("description"),                                   // Description of Work
+  cost: money("cost"),                                                // Cost (₹)
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [
+  check("partner_cost_non_negative", sql`${t.cost} IS NULL OR ${t.cost} >= 0`),
+  check("partner_logo_is_image", sql`${t.logo} IS NULL OR ${t.logo} LIKE 'data:image/%'`),
+]);

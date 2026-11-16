@@ -13,8 +13,8 @@ export default function IndustriesPage() {
         <div className="hp-sectors">
           {INDUSTRIES.items.map(([icon, label]) => <div key={label} className="hp-sector"><Icon name={icon} />{label}</div>)}
         </div>
-        <p className="hp-body hp-centered">{INDUSTRIES.outro}</p>
-        <div className="hp-after hp-center-row"><Btn href="/contact">Contact Us</Btn></div>
+        <p className="hp-body hp-outro">{INDUSTRIES.outro}</p>
+        <div className="hp-after"><Btn href="/contact">Contact Us</Btn></div>
       </Section>
     </>
   );

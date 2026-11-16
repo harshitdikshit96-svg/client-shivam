@@ -218,3 +218,15 @@ The downloads follow the client's sample formats exactly: headings character for
 - **View All Bills** lists every bill of the firm. It is the only way to see them all; the drop-down has no "All".
 - **The Bill Details form is closed until Add New Bill** (or Edit on a bill) opens it. Add New Bill fills in the work
   order picked above; **Close Form** shuts it without saving.
+
+## CR-16 — 17 Nov 2026 (public website + Partners)
+- **Public website at `/`** (Shivanji Group of Companies, content word for word from the client's document), with its
+  own pages: About, Our Companies (+ one page per company), Services, Industries, Projects, Clients & Partners, Careers,
+  Vendor Registration, Business Enquiry, News, Contact, Privacy, Terms, Disclaimer. **Login** in the navbar opens the
+  portal, which moved to **`/admin`** (kept out of search engines). The website's forms are shown only; nothing is sent.
+- **Website → Partners** (new menu group in the portal): Name of the Partner (required), Logo, Description of Work,
+  Cost. Same list → form pattern as the Dispatch Register. Not tied to a firm. Saved partners show at once as tiles on
+  the website's **/partners** page, above "Partner With Us".
+- The logo is shrunk in the browser (at most 320 px) and kept in the database; `/api/partner-logo/ID` serves it. Only
+  PNG / JPG / WebP / GIF, at most ~300 KB; SVG is refused.
+- New table **`partners`** (migration `drizzle/0007_partners.sql`), included in the daily backups.

@@ -50,6 +50,13 @@
       "when": 1793545592046,
       "tag": "0006_gst_only",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794831249136,
+      "tag": "0007_partners",
+      "breakpoints": true
     }
   ]
 }

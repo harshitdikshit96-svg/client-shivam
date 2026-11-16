@@ -433,3 +433,11 @@ h3.block-title { font-size: 18px; font-weight: 400; margin: 0 0 4px; }
 @keyframes sh-move { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .sh { animation: none; } }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Website → Partners: logo picker and logo column (CR-16) ---------- */
+.image-input { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.image-preview, .image-empty { width: 72px; height: 72px; border: 1px solid var(--border); border-radius: 4px; background: #fff; }
+.image-preview { object-fit: contain; padding: 4px; }
+.image-empty { display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+.image-buttons { display: flex; gap: 8px; }
+.logo-cell { width: 40px; height: 40px; object-fit: contain; display: block; }

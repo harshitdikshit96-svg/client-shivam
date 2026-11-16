@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <PageHero trail={[["/privacy", "Privacy Policy"]]} title="Privacy Policy" />
-      <Section narrow>
+      <Section>
         <div className="hp-prose">
           {PRIVACY.map((t) => <p key={t}>{t}</p>)}
           <p>For privacy-related questions, contact: <a href={`mailto:${EMAIL}`}>{EMAIL}</a>.</p>
