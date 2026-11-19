@@ -16,6 +16,7 @@ import { useData, fmtDate, fmtMoney, MONTHS as MONTH_LABELS } from "./Data";
 import { CONTROLLERS, WAGE_INPUTS, WAGE_OUTPUTS, wageRows, wageSelection, gridValues, setGridValue, previewLine, printDoc, engageWoId } from "./screens";
 import { PrintOverlay, FormD, WageSlip } from "./Forms";
 import ImageInput from "./ImageInput";
+import DateInput from "./DateInput";
 
 // ctx for the live screen (null without live data)
 const PageCtx = createContext(null);
@@ -463,8 +464,8 @@ function EngageFrom({ row }) {
   const sel = ctx.local.sel ?? {};
   // any date can be picked (CR-13): one outside the order or before joining is saved with a warning
   return (
-    <input type="date" aria-label={`New engagement from for ${row.wuin}`} value={sel[row.id]?.from ?? ""}
-      onChange={(e) => ctx.setLocal({ sel: { ...sel, [row.id]: { ...sel[row.id], checked: true, from: e.target.value } } })} />
+    <DateInput label={`New engagement from for ${row.wuin}`} value={sel[row.id]?.from ?? ""}
+      onChange={(v) => ctx.setLocal({ sel: { ...sel, [row.id]: { ...sel[row.id], checked: true, from: v } } })} />
   );
 }
 
@@ -587,7 +588,7 @@ function Control({ it, block, live }) {
     switch (it.input) {
       case "select": return <select disabled={ro} defaultValue="">{[<option key="" value="" />, ...options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)]}</select>;
       case "textarea": return <textarea readOnly={ro} rows={2} />;
-      case "date": return <input type="date" readOnly={ro} />;
+      case "date": return <input type="text" placeholder="dd/mm/yyyy" readOnly={ro} />;
       case "checkbox": return <input type="checkbox" disabled={ro} />;
       case "rate": return <select disabled={ro} defaultValue="">{[<option key="" value="" />, ...(it.options || []).map((o) => <option key={o} value={o}>{o}%</option>), <option key="other" value="other">Other</option>]}</select>;
       case "file": return <input type="file" disabled={ro} />;
@@ -624,7 +625,7 @@ function Control({ it, block, live }) {
     case "select":
       return <select disabled={ro} value={value} onChange={set} {...common}>{[<option key="" value="">{dynamic && !options.length ? "— none available —" : "— select —"}</option>, ...options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)]}</select>;
     case "textarea": return <textarea readOnly={ro} rows={2} value={value} onChange={set} {...fmt} {...common} />;
-    case "date": return <input type="date" readOnly={ro} value={value} onChange={set} min="1900-01-01" max="2100-12-31" {...common} />;
+    case "date": return <DateInput value={value} readOnly={ro} label={it.label} invalid={!!err} onChange={(v) => ctx.setValue(block.id, it.id, v)} onBlur={check} />;
     case "file":
       return <input type="file" disabled={ro} {...common} onChange={(e) => { e.target.value = ""; ctx.live.notify("info", "Uploading documents is not part of this version yet. The work order is saved without the file."); }} />;
     case "image":

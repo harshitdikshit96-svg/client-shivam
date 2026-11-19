@@ -88,7 +88,8 @@ describe("every button on every screen does something", () => {
       for (let i = 0; i < count; i++) {
         const { container, go } = await renderLive(id, params);
         const btn = within(container).queryAllByRole("button")[i];
-        if (!btn || btn.disabled) { cleanup(); continue; }
+        // the calendar button of a date box opens the browser's own date picker (tested in its own case below)
+        if (!btn || btn.disabled || btn.classList.contains("date-pick")) { cleanup(); continue; }
         const name = btn.textContent;
         await userEvent.click(btn);
         clicked++;
@@ -190,13 +191,35 @@ describe("every typed field has a length limit on screen", () => {
   }
 });
 
+describe("dates are shown and typed as dd/mm/yyyy", () => {
+  it("the date box shows dd/mm/yyyy, puts the slashes in, keeps YYYY-MM-DD for the data, and its calendar button opens the picker", async () => {
+    const { default: DateInput, parseDmy } = await import("@/components/DateInput");
+    const seen = [];
+    const { rerender } = render(<DateInput label="Bill Date" value="2026-11-19" onChange={(v) => seen.push(v)} />);
+    const box = screen.getByLabelText("Bill Date");
+    expect(box).toHaveValue("19/11/2026");
+    await userEvent.clear(box);
+    await userEvent.type(box, "05012027");
+    expect(box).toHaveValue("05/01/2027");
+    expect(seen.at(-1)).toBe("2027-01-05");
+    rerender(<DateInput label="Bill Date" value="" onChange={() => {}} />);
+    expect(box).toHaveValue("");
+    expect(parseDmy("31/02/2026")).toBe("2026-02-31");   // not a real day: the field's check says so
+    expect(parseDmy("1/2/2026")).toBe("2026-02-01");
+    const showPicker = vi.fn();
+    document.querySelector(".date-native").showPicker = showPicker;
+    await userEvent.click(screen.getByRole("button", { name: "Pick a date" }));
+    expect(showPicker).toHaveBeenCalled();
+  });
+});
+
 describe("engagements and submitted wages can be corrected", () => {
   it("Edit on an engagement opens both dates", async () => {
     await renderLive("wm_view", { wm: ids.workers[0].id });
     const row = screen.getByText("Engagements").closest("section").querySelector("tbody tr");
     await userEvent.click(within(row).getByRole("button", { name: "Edit" }));
     const dlg = screen.getByRole("dialog");
-    expect(within(dlg).getByLabelText("Engaged From")).toHaveValue("2026-07-01");
+    expect(within(dlg).getByLabelText("Engaged From")).toHaveValue("01/07/2026");
     expect(within(dlg).getByLabelText("Engaged To")).toHaveValue("");
   });
   it("a submitted month offers Reopen for Editing", async () => {
@@ -366,7 +389,7 @@ describe("Dispatch Register", () => {
     await userEvent.selectOptions(screen.getAllByLabelText("Work Order")[1], String(o.id));
     await userEvent.type(screen.getByLabelText("Party Name / Contract Number"), "NEC");
     await userEvent.type(screen.getByLabelText("Bill Number"), "CR15-B1");
-    await userEvent.type(screen.getByLabelText("Bill Date"), "2026-10-01");
+    await userEvent.type(screen.getByLabelText("Bill Date"), "01/10/2026");
     await userEvent.type(screen.getByLabelText("Taxable Amount"), "1000");
     await userEvent.click(screen.getByRole("button", { name: "Add Bill" }));
     await waitFor(() => expect(filter()).toHaveValue(String(o.id)));
@@ -526,7 +549,7 @@ describe("workmen flow (CR-11): Engage = available workmen, Active = a work orde
     const [w] = t2.ws;
     const before = new Date(Date.parse(`${w.dateOfJoining}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
     await t2.render("wm_engage");
-    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), before);
+    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), before.split("-").reverse().join("/"));
     await userEvent.click(screen.getByRole("button", { name: "Engage Selected" }));
     await waitFor(() => expect(document.querySelector(".notice")).not.toBeNull());
     const notice = document.querySelector(".notice");
@@ -583,7 +606,7 @@ describe("workmen flow (CR-11): Engage = available workmen, Active = a work orde
     await t2.render("wm_engage");
     expect(screen.getByText("Anurag")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("checkbox", { name: `Select ${w.wuin}` }));
-    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), "2026-10-22");
+    await userEvent.type(screen.getByLabelText(`New engagement from for ${w.wuin}`), "22/10/2026");
     await userEvent.click(screen.getByRole("button", { name: "Engage Selected" }));
     await waitFor(() => expect(screen.queryByText("Anurag")).toBeNull());   // gone from the available list at once
     cleanup();
@@ -604,7 +627,7 @@ describe("workmen flow (CR-11): Engage = available workmen, Active = a work orde
     const exit = within(dlg).getByLabelText("Date of Exit");
     expect(exit).toHaveValue("");                                                      // typed by the user, never pre-filled
     expect(within(dlg).getByRole("button", { name: "Move Out" })).toBeDisabled();
-    await userEvent.type(exit, "2026-10-31");
+    await userEvent.type(exit, "31/10/2026");
     await userEvent.click(within(dlg).getByRole("button", { name: "Move Out" }));
     expect(await screen.findByRole("status")).toHaveTextContent("moved out on 31/10/2026");
     await waitFor(() => expect(screen.queryByText("Anurag")).toBeNull());
@@ -635,7 +658,7 @@ describe("workmen flow (CR-11): Engage = available workmen, Active = a work orde
     await userEvent.click(screen.getByRole("button", { name: "Delete Workman (Move Out)" }));
     const dlg = screen.getByRole("dialog");
     expect(within(dlg).getByLabelText("Date of Exit")).toHaveValue("");
-    await userEvent.type(within(dlg).getByLabelText("Date of Exit"), "2026-10-15");
+    await userEvent.type(within(dlg).getByLabelText("Date of Exit"), "15/10/2026");
     await userEvent.click(within(dlg).getByRole("button", { name: "Move Out" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/moved out on/);
     const snap = await firmSnapshot(t2.x.db, t2.f.id);

@@ -20,7 +20,7 @@ describe("Form D — wage statement", () => {
     expect(doc.header).toEqual([
       ["Name of Firm/Establishment", "Vinyasa Infra Developers", "Name of Owner/Contractor", "Harishchandra Singh"],
       ["Work Order Reference No", "GEMC-511687768623778", "Name of the Work", "Hiring of services for sweeping and cleaning"],
-      ["Date of Commencement", "15-06-2026", "Date of Completion", "30-10-2026"],
+      ["Date of Commencement", "15/06/2026", "Date of Completion", "30/10/2026"],
     ]);
   });
   it("the 25 column headings, in order, exactly as written", () => {
@@ -47,7 +47,7 @@ describe("Form D — wage statement", () => {
     expect(d.rows[0][FORM_D_COLUMNS.indexOf("Fine")]).toBe("25.50");
   });
   it("verification line and page footer", () => {
-    expect(doc.verified).toBe("Paid Wages Verified By Samson Bey[Manager(HR)] on 17-10-2026");
+    expect(doc.verified).toBe("Paid Wages Verified By Samson Bey[Manager(HR)] on 17/10/2026");
     expect(doc.footer).toBe("Contractor CUIN : 10011515 | 30-10-2026 02:57:06 PM");
     expect(formD({ firm: FIRM, wo: WO, sheet: { ...SHEET, status: "submitted" }, workmen: [WORKMAN] }).verified).toMatch(/not yet approved/);
   });
@@ -68,7 +68,7 @@ describe("FORM VIII-C — wage slip", () => {
   it("headings as in the format", () => {
     expect(doc.heading).toEqual(["Issuance of Wage Slip under Section 50(3) of Code on Wages, 2019", "FORM – VIII-C", "(See rule 156)", "Format for Wage Slip"]);
     expect([doc.dateOfIssue, doc.establishment, doc.address, doc.period]).toEqual(
-      ["Date of issue: 30-10-2026", "Name of the Establishment: Vinyasa Infra Developers", "Address : MARGHERITA", "Period: August-2026"]);
+      ["Date of issue: 30/10/2026", "Name of the Establishment: Vinyasa Infra Developers", "Address : MARGHERITA", "Period: August-2026"]);
     expect(doc.signature).toBe("Employer/Pay-in-charge signature");
   });
   it("the 12 items with the client's values", () => {
@@ -99,7 +99,7 @@ describe("FORM VIII-C — wage slip", () => {
 describe("helpers", () => {
   it("amounts, dates, masks, time stamp", () => {
     expect([amount(14456), amount("1234.5"), amount(null), amount(0)]).toEqual(["14456", "1234.50", "0", "0"]);
-    expect(dmy("2026-06-15")).toBe("15-06-2026");
+    expect(dmy("2026-06-15")).toBe("15/06/2026");
     expect([mask("102227192122", "X"), mask("31288056487", "*"), mask("", "*"), mask("123", "*")]).toEqual(["XXXXXXXX2122", "*******6487", "", "123"]);
     expect(stamp(new Date(2026, 0, 5, 0, 7, 9))).toBe("05-01-2026 12:07:09 AM");
   });

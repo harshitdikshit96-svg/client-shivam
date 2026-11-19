@@ -2,7 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildSpec, finalSpec, diffVersions, EMPTY } from "@/lib/resolve";
 
-const fmt = (t) => (t ? new Date(t).toLocaleString() : "—");
+// dd/mm/yyyy, hh:mm (24-hour), whatever language the browser is set to
+const fmt = (t) => {
+  if (!t) return "—";
+  const d = new Date(t);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 
 export default function Review() {
   const [a, setA] = useState(null);

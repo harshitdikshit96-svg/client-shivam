@@ -44,7 +44,7 @@ describe("website", () => {
     render(<ContactPage />);
     screen.getByRole("button", { name: "Send an Enquiry" }).click();
     expect(await screen.findByRole("status")).toHaveTextContent("Your details have been submitted successfully.");
-    expect(screen.getAllByRole("link", { name: "secureeyelko@gmail.com" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "contact@shivanjigroup.in" }).length).toBeGreaterThan(0);
   });
 });
 

@@ -230,3 +230,11 @@ The downloads follow the client's sample formats exactly: headings character for
 - The logo is shrunk in the browser (at most 320 px) and kept in the database; `/api/partner-logo/ID` serves it. Only
   PNG / JPG / WebP / GIF, at most ~300 KB; SVG is refused.
 - New table **`partners`** (migration `drizzle/0007_partners.sql`), included in the daily backups.
+
+## CR-17 — 19 Nov 2026 (dates as dd/mm/yyyy; Partners in the website navbar)
+- **Every date a person sees or types is dd/mm/yyyy**, whatever language the browser is set to: date boxes (a new
+  dd/mm/yyyy box that puts the slashes in, with a calendar button), lists, messages, printed Form D / wage slip
+  (were dd-mm-yyyy), Excel downloads, the review page, and the backup tool (`--restore 15/11/2026`, `--list`).
+- **The database keeps real dates** (`date` columns, which have no text format), so sorting, overlap and deadline rules
+  keep working. Backup file names stay `erp-YYYY-MM-DD.json` so they sort by date.
+- Website navbar: **Partners** (/partners) replaces Projects; Projects stays in the footer's Quick Links.

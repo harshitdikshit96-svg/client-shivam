@@ -2,6 +2,7 @@
 // Live data for the screens (final mode): the selected firm's records from /api/data, actions (POST /api/data),
 // the message bar shown after every action, and the confirm / date dialogs. Without a provider (prototype mode,
 // spec tests) useData() is null and the screens render their empty spec layout.
+import DateInput from "./DateInput";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 const DataCtx = createContext(null);
@@ -140,13 +141,17 @@ function Dialog({ dialog, close }) {
         {dialog.input && (
           <label className="field">
             <span>{dialog.input.label}</span>
-            <input type={dialog.input.type || "text"} value={v} onChange={(e) => setV(e.target.value)} aria-label={dialog.input.label} autoFocus />
+            {dialog.input.type === "date"
+              ? <DateInput value={v} onChange={setV} label={dialog.input.label} autoFocus />
+              : <input type={dialog.input.type || "text"} value={v} onChange={(e) => setV(e.target.value)} aria-label={dialog.input.label} autoFocus />}
           </label>
         )}
         {dialog.inputs?.map((i) => (
           <label className="field" key={i.name}>
             <span>{i.label}</span>
-            <input type={i.type || "text"} value={many[i.name]} onChange={(e) => setMany((m) => ({ ...m, [i.name]: e.target.value }))} aria-label={i.label} />
+            {i.type === "date"
+              ? <DateInput value={many[i.name]} onChange={(x) => setMany((m) => ({ ...m, [i.name]: x }))} label={i.label} />
+              : <input type={i.type || "text"} value={many[i.name]} onChange={(e) => setMany((m) => ({ ...m, [i.name]: e.target.value }))} aria-label={i.label} />}
           </label>
         ))}
         <div className="modal-actions">

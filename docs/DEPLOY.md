@@ -88,8 +88,8 @@ public and must not be used.
 `.env.local` tab) in `.env.neon` next to `DATABASE_URL`, then:
 ```bash
 node --env-file=.env.neon scripts/db-backup.mjs --list                        # the 21 days kept
-node --env-file=.env.neon scripts/db-backup.mjs --download 2026-11-15         # → erp-2026-11-15.json (keep it private)
-node --env-file=.env.neon scripts/db-backup.mjs --restore 2026-11-15 --yes    # replace ALL live data with that day
+node --env-file=.env.neon scripts/db-backup.mjs --download 15/11/2026         # → erp-2026-11-15.json (keep it private)
+node --env-file=.env.neon scripts/db-backup.mjs --restore 15/11/2026 --yes    # replace ALL live data with that day
 node --env-file=.env.neon scripts/db-backup.mjs                               # take a backup now
 ```
 A restore runs in one transaction (all or nothing). It refuses a backup from a different database version, and it logs
