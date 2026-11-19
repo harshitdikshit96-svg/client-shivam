@@ -238,3 +238,12 @@ The downloads follow the client's sample formats exactly: headings character for
 - **The database keeps real dates** (`date` columns, which have no text format), so sorting, overlap and deadline rules
   keep working. Backup file names stay `erp-YYYY-MM-DD.json` so they sort by date.
 - Website navbar: **Partners** (/partners) replaces Projects; Projects stays in the footer's Quick Links.
+
+## CR-18 — 19 Nov 2026 (website on every screen size)
+- **Phone / tablet menu** (below 1100 px) now opens over the whole page. It used to open only ~40 px tall behind the
+  page: the header's frosted-glass effect boxed the menu in. Escape or picking a link closes it.
+- Phones: the logo stays on one line down to 320 px; the photo tags in the hero no longer get cut off; every button is
+  full width (as the hero and form buttons already were); the Contact page no longer runs past the right margin.
+- Small tablets (≤ 900 px): the hero text and photos stack instead of squeezing into two narrow columns.
+- New browser tests (`e2e/website.spec.js`): the menu at 320 / 390 / 768 / 1024 px, and no sideways scroll on the
+  website's pages at 320 – 1440 px.
