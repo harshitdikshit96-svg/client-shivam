@@ -1,6 +1,7 @@
 // The public website: content pages, Login in the navbar going to the portal at /admin.
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", notFound: () => { throw new Error("not found"); } }));
 const { default: SiteHeader } = await import("@/components/site/SiteHeader");
@@ -40,11 +41,33 @@ describe("website", () => {
       .toHaveAttribute("href", "/enquiry?company=Vinyasa%20Infra%20Developers");
   });
 
-  it("submitting a form shows the thank-you message", async () => {
+  it("a form checks its fields, then sends and shows the thank-you message", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     render(<ContactPage />);
-    screen.getByRole("button", { name: "Send an Enquiry" }).click();
+    const form = screen.getByRole("form", { name: "Contact form" });
+    await user.click(within(form).getByRole("button", { name: "Send an Enquiry" }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(within(form).getAllByText("This field is required.")).toHaveLength(5);
+    expect(within(form).getByLabelText(/^Name/)).toHaveFocus();
+
+    await user.type(within(form).getByLabelText(/^Name/), "Ravi Kumar");
+    await user.type(within(form).getByLabelText(/^Phone/), "12345");
+    await user.tab();
+    expect(within(form).getByText(/Enter a 10-digit mobile number/)).toBeInTheDocument();
+    await user.clear(within(form).getByLabelText(/^Phone/));
+    await user.type(within(form).getByLabelText(/^Phone/), "+91 98765 43210");
+    await user.type(within(form).getByLabelText(/^Email/), "ravi@example.com");
+    await user.type(within(form).getByLabelText(/^Enquiry/), "Security staff");
+    await user.type(within(form).getByLabelText(/^Message/), "Need ten guards for a warehouse.");
+    await user.click(within(form).getByRole("button", { name: "Send an Enquiry" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Your details have been submitted successfully.");
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("/api/site-form");
+    expect(init.body.get("form")).toBe("contact");
+    expect(init.body.get("phone")).toBe("+91 98765 43210");
     expect(screen.getAllByRole("link", { name: "contact@shivanjigroup.in" }).length).toBeGreaterThan(0);
+    fetchSpy.mockRestore();
   });
 });
 

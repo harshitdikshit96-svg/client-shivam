@@ -112,7 +112,7 @@ export function CompanyGrid() {
       <Link href="/about" className="hp-cnote">
         <span className="hp-mono" aria-hidden="true">SG</span>
         <div>
-          <span className="hp-pill">8. {HOME.groupEntry[1]}</span>
+          <span className="hp-pill">{COMPANIES.length + 1}. {HOME.groupEntry[1]}</span>
           <h3>{HOME.groupEntry[0]}</h3>
         </div>
         <span className="hp-link">About Us<Icon name="arrowRight" /></span>

@@ -247,3 +247,25 @@ The downloads follow the client's sample formats exactly: headings character for
 - Small tablets (≤ 900 px): the hero text and photos stack instead of squeezing into two narrow columns.
 - New browser tests (`e2e/website.spec.js`): the menu at 320 / 390 / 768 / 1024 px, and no sideways scroll on the
   website's pages at 320 – 1440 px.
+
+## CR-19 — 19 Nov 2026 (home hero carousel)
+- The home page hero is now a full-width **photo carousel**: six HD photos (the group, then one per vertical) fade into
+  each other every 3.5 s with a slow zoom, under a navy wash so the text stays readable. The hero text, mission line and
+  three buttons are unchanged (word for word); the slide's name and "01 / 06" show bottom-left, dots bottom-right.
+- Dots pick a slide; swipe on phones; it pauses while hovered or focused and has a pause / play button. With the
+  system's "reduce motion" setting it doesn't move on its own.
+- Photos: Unsplash (free licence, no credit needed), in `public/home/slide-*-{960,1920}.webp` — phones load the 960 px
+  ones. The three old hero collage photos were removed. Slide list: `HERO_SLIDES` in `lib/site.js`.
+
+## CR-20 — 19 Nov 2026 (new company on the website; forms checked and emailed)
+- Website only (not the ERP): **Shivanji HR Solutions Private Limited** added as company 8 — its own page
+  (`/companies/shivanji-hr-solutions`), card, footer, Contact list and every form's company list. Text written in the
+  style of the others, for the client to confirm. The group card is now 9.
+- **All four website forms check their fields** (when you leave a field and on submit, and again on the server): required
+  fields, Indian mobile numbers, email, names, lengths, GSTIN / PAN (vendor), file type and size (resume PDF/Word ≤ 2 MB,
+  vendor documents ≤ 3 MB), consent. The vendor form gained Mobile number and Email address.
+- **Submissions are emailed** to the Contact page address (`EMAIL` in `lib/site.js`) through Resend, with the visitor as
+  reply-to and files attached. Nothing is stored. Bots: hidden field + 5 submissions per 10 minutes per connection.
+- Vercel Production env: `RESEND_API_KEY` (Resend free account, domain shivanjigroup.in verified for sending) and
+  `MAIL_FROM` = `Shivanji Group Website <website@shivanjigroup.in>`. Without a key, local dev logs instead of sending.
+- Code: `lib/site-forms.js` (fields and checks), `components/site/SiteForm.js`, `app/api/site-form/route.js`, `lib/mailer.js`.

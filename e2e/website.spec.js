@@ -36,3 +36,28 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     }
   });
 }
+
+test("home hero carousel: fades on its own, dots pick a slide, pause stops it", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const hero = page.getByRole("region", { name: "Our business verticals" });
+  const label = hero.locator(".hp-slide-label");
+  await expect(label).toContainText("01 / 06");
+  await expect(hero.locator(".hp-slides img.hp-on")).toHaveCount(1);
+  // moves on by itself (mouse kept off the hero, which pauses it)
+  await page.mouse.move(5, 5);
+  await expect(label).toContainText("02 / 06", { timeout: 8000 });
+  await hero.getByRole("button", { name: "Show slide 4: Healthcare & Wellness" }).click();
+  await expect(label).toContainText("Healthcare & Wellness");
+  await expect(hero.getByRole("button", { name: /Show slide 4/ })).toHaveAttribute("aria-current", "true");
+  await hero.getByRole("button", { name: "Pause slideshow" }).click();
+  await page.mouse.click(5, 5); // focus and mouse off the hero, so only the pause button holds it
+  await page.waitForTimeout(6500);
+  await expect(label).toContainText("04 / 06");
+  await hero.getByRole("button", { name: "Play slideshow" }).click();
+  await page.mouse.click(5, 5);
+  await expect(label).toContainText("05 / 06", { timeout: 8000 });
+  // the hero text and buttons are unchanged
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Building Businesses. Creating Opportunities.");
+  for (const name of ["Explore Our Companies", "Partner With Us", "Contact Us"]) await expect(hero.getByRole("link", { name })).toBeVisible();
+});

@@ -1,32 +1,24 @@
 // 1. Home
 import Link from "next/link";
 import Icon from "@/components/site/Icon";
+import HeroCarousel from "@/components/site/HeroCarousel";
 import { Btn, CompanyGrid, CtaBand, IconCards, Section, Ticks } from "@/components/site/parts";
 import { HOME, VERTICALS } from "@/lib/site";
 
 export default function HomePage() {
   return (
     <>
-      <section className="hp-hero">
-        <div className="hp-wrap hp-hero-grid">
-          <div>
-            <h1>Building Businesses. <em>Creating Opportunities.</em></h1>
-            {HOME.intro.map((t) => <p key={t} className="hp-lead">{t}</p>)}
-            <p className="hp-mission-line"><b>Our Mission:</b> {HOME.mission}</p>
-            <div className="hp-ctas">
-              <Btn href="/companies">Explore Our Companies</Btn>
-              <Btn href="/partners" kind="line" arrow={false}>Partner With Us</Btn>
-              <Btn href="/contact" kind="line" arrow={false}>Contact Us</Btn>
-            </div>
-          </div>
-          <div className="hp-collage">
-            <div className="hp-frame" aria-hidden="true" />
-            <figure className="hp-shot hp-s1"><img className="hp-cover" src="/home/hero-security.webp" alt="Security officer on duty" width="900" height="1200" fetchPriority="high" /><span className="hp-tag">Security &amp; Manpower</span></figure>
-            <figure className="hp-shot hp-s2"><img className="hp-cover" src="/home/hero-infra.webp" alt="Engineers on a large construction site" width="900" height="900" /><span className="hp-tag">Infrastructure</span></figure>
-            <figure className="hp-shot hp-s3"><img className="hp-cover" src="/home/hero-organic.webp" alt="Farm fields at sunrise" width="1000" height="691" /><span className="hp-tag">Organic &amp; Sustainable</span></figure>
-          </div>
+      <HeroCarousel>
+        <span className="hp-hero-rule" aria-hidden="true" />
+        <h1>Building Businesses. <em>Creating Opportunities.</em></h1>
+        {HOME.intro.map((t) => <p key={t} className="hp-lead">{t}</p>)}
+        <p className="hp-mission-line"><b>Our Mission:</b> {HOME.mission}</p>
+        <div className="hp-ctas">
+          <Btn href="/companies" kind="gold">Explore Our Companies</Btn>
+          <Btn href="/partners" kind="ghost" arrow={false}>Partner With Us</Btn>
+          <Btn href="/contact" kind="ghost" arrow={false}>Contact Us</Btn>
         </div>
-      </section>
+      </HeroCarousel>
 
       <section className="hp-sec hp-white">
         <div className="hp-wrap hp-split">

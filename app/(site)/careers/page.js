@@ -1,7 +1,7 @@
 // 8. Careers
 import SiteForm from "@/components/site/SiteForm";
 import { PageHero, Section, Ticks } from "@/components/site/parts";
-import { CAREERS, FORMS } from "@/lib/site";
+import { CAREERS } from "@/lib/site";
 
 export const metadata = { title: "Careers" };
 
@@ -15,7 +15,7 @@ export default function CareersPage() {
         <Ticks items={CAREERS.areas} cols />
       </Section>
       <Section title="Apply for an Opportunity" sub={CAREERS.apply}>
-        <SiteForm fields={FORMS.careers} submit="Submit Your Resume" label="Apply for an Opportunity" />
+        <SiteForm form="careers" submit="Submit Your Resume" label="Apply for an Opportunity" />
         <p className="hp-small-note">{CAREERS.note}</p>
       </Section>
     </>

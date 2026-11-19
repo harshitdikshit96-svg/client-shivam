@@ -3,7 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/site/Icon";
 import SiteForm from "@/components/site/SiteForm";
 import { PageHero, Section } from "@/components/site/parts";
-import { COMPANIES, EMAIL, FORMS, GROUP } from "@/lib/site";
+import { COMPANIES, EMAIL, GROUP } from "@/lib/site";
 
 export const metadata = { title: "Contact Us" };
 
@@ -27,7 +27,7 @@ export default function ContactPage() {
           </aside>
           <div>
             <h2 className="hp-h3">Contact Form</h2>
-            <SiteForm fields={FORMS.contact} submit="Send an Enquiry" label="Contact form" />
+            <SiteForm form="contact" submit="Send an Enquiry" label="Contact form" />
           </div>
         </div>
       </Section>
