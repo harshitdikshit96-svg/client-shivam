@@ -269,3 +269,8 @@ The downloads follow the client's sample formats exactly: headings character for
 - Vercel Production env: `RESEND_API_KEY` (Resend free account, domain shivanjigroup.in verified for sending) and
   `MAIL_FROM` = `Shivanji Group Website <website@shivanjigroup.in>`. Without a key, local dev logs instead of sending.
 - Code: `lib/site-forms.js` (fields and checks), `components/site/SiteForm.js`, `app/api/site-form/route.js`, `lib/mailer.js`.
+- The phone / tablet menu now has the same links as the desktop navbar (it used to list every page, Projects included).
+  The other pages stay in the footer.
+- Our Companies grid: with 8 companies the group card (9) was alone on its row; when alone it now spans the row as a
+  banner (desktop 4 columns, tablet 2). New browser tests: all 4 forms (empty submit blocked, filled one sent), the HR firm.
+- `CLAUDE.md`: notes for picking the project up again (working agreements, gotchas, open items).

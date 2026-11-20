@@ -156,6 +156,9 @@ html:has(.hp){scroll-padding-top:84px}
 .hp-cnote .hp-pill{color:var(--gold);display:inline-block}
 .hp-cnote .hp-link{color:#fff;margin-top:auto}
 .hp-cnote .hp-link .hp-ic{color:var(--gold)}
+/* the group card alone on the last row becomes a full-width banner */
+.hp-cgrid > .hp-cnote:nth-child(4n+1){grid-column:1 / -1;flex-direction:row;align-items:center;gap:28px;padding:28px 32px}
+.hp-cgrid > .hp-cnote:nth-child(4n+1) .hp-link{margin:0 0 0 auto}
 .hp-co-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
 .hp-panel-wide{grid-column:1 / -1}
 .hp-co-grid > .hp-panel:not(.hp-panel-wide):last-child:nth-child(even){grid-column:1 / -1}   /* a lone last panel takes the full row */
@@ -282,6 +285,8 @@ html:has(.hp){scroll-padding-top:84px}
   .hp-hero h1{font-size:54px}
   .hp-split{gap:48px}
   .hp-vgrid,.hp-cgrid,.hp-co-others,.hp-pgrid{grid-template-columns:repeat(2,1fr)}
+  .hp-cgrid > .hp-cnote:nth-child(odd){grid-column:1 / -1;flex-direction:row;align-items:center;gap:28px;padding:28px 32px}
+  .hp-cgrid > .hp-cnote:nth-child(odd) .hp-link{margin:0 0 0 auto}
   .hp-why{grid-template-columns:1fr;gap:32px}
   .hp-sectors{grid-template-columns:repeat(2,1fr)}
   .hp-contact .hp-h3{margin-bottom:12px}
@@ -322,6 +327,8 @@ html:has(.hp){scroll-padding-top:84px}
   .hp-pic{height:260px}
   .hp-panel{padding:28px 22px}
   .hp-vgrid,.hp-cgrid,.hp-co-others,.hp-sectors,.hp-ticks-2,.hp-pgrid{grid-template-columns:1fr}
+  .hp-cgrid > .hp-cnote:nth-child(n){flex-direction:column;align-items:stretch;gap:18px;padding:28px 22px 16px}
+  .hp-cgrid > .hp-cnote:nth-child(n) .hp-link{margin:auto 0 0}
   .hp-ticks-2 li:nth-last-child(2):nth-child(odd){border-bottom:0}
   .hp-vcard{padding:28px 22px}
   .hp-dark .hp-ticks li{font-size:16px;gap:14px;padding:18px 0}

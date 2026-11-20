@@ -1,11 +1,11 @@
 "use client";
-// Website header: brand, page links, Login (→ the portal at /admin). Below 1100px the links move into a menu.
+// Website header: brand, page links, Login (→ the portal at /admin). Below 1100px the same links move into a menu.
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./Icon";
 import { Brand } from "./parts";
-import { NAV, QUICK_LINKS, MORE_LINKS } from "@/lib/site";
+import { NAV } from "@/lib/site";
 
 const isOn = (path, href) => (href === "/" ? path === "/" : path === href || path?.startsWith(`${href}/`));
 
@@ -46,7 +46,7 @@ export default function SiteHeader() {
         </button>
       </div>
       <nav id="hp-menu" className={`hp-menu ${menuOpen ? "hp-open" : ""}`} aria-label="Menu" onClick={(e) => { if (e.target.closest("a")) setMenuOpen(false); }}>
-        {[...QUICK_LINKS, ...MORE_LINKS].map(([href, label]) => (
+        {NAV.map(([href, label]) => (
           <Link key={href} className="hp-item" href={href} aria-current={isOn(path, href) ? "page" : undefined}>{label}</Link>
         ))}
         <a href="/admin" className="hp-btn hp-btn-navy">Login</a>
